@@ -16,12 +16,6 @@ public class LogstashController {
     @Autowired
     LogstashService logstashService;
 
-
-    @GetMapping("/console")
-    @CrossOrigin(origins = "*")
-    public List<String> console() {
-        return logstashService.getBuffer();
-    }
     @GetMapping("/restart")
     @CrossOrigin(origins = "*")
     public void restart() {
