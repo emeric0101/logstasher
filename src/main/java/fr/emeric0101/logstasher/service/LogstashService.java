@@ -69,7 +69,9 @@ public class LogstashService {
             cmds.addAll(Arrays.asList(log_cmd.replaceAll("%LOGSTASH_PATH%", logstashProperties.getPath()).split(" ")));
             // if batch, run it
             if (currentBatch != null) {
-                cmds.addAll(new ArrayList<String>(){{add("-e"); add("\"" + currentBatch.getBatch().getContent() + "\"");}});
+                cmds.addAll(new ArrayList<String>(){{add("-e"); add("\"" + currentBatch.getBatch().getContent()
+                        .replace("\"", "\\\"").replace("\t", " ")
+                         + "\"");}});
                 currentBatch.setState("RUNNING");
                 executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "Starting batch");
                 sendState();
@@ -197,6 +199,8 @@ public class LogstashService {
         }
         changeState("STOPPED");
         logstashInstance = null;
+        currentQueue = null;
+        currentBatch = null;
     }
 
     public LogstashRunning getRunning() {
@@ -223,14 +227,15 @@ public class LogstashService {
         if (currentQueue != null) {
             throw new RuntimeException("Queue is already running");
         }
+        if (!queue.getQueue().iterator().hasNext()) {
+            return;
+        }
         currentQueue = queue;
         stopLogstash();
         buffer.clear();
 
         queueIterator = queue.getQueue().iterator();
-        if (!queueIterator.hasNext()) {
-            return;
-        }
+
         currentBatch = queueIterator.next();
         start();
     }
