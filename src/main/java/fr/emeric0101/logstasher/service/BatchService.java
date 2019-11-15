@@ -1,11 +1,11 @@
 package fr.emeric0101.logstasher.service;
 
 import fr.emeric0101.logstasher.dto.ExecutionQueue;
+import fr.emeric0101.logstasher.entity.BatchArchive;
 import fr.emeric0101.logstasher.entity.Batch;
 import fr.emeric0101.logstasher.repository.BatchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +25,10 @@ public class BatchService {
 
     @Autowired
     LogstashService logstashService;
+
+    @Autowired
+    ArchiveService archiveService;
+
 
     public List<Batch> findAll() {
         PageRequest page = PageRequest.of(0, 1000, Sort.Direction.ASC, "order");
@@ -58,5 +62,26 @@ public class BatchService {
 
         ExecutionQueue queue = new ExecutionQueue(batches);
         logstashService.startFromQueue(queue);
+    }
+
+    public void startScheduledBatched(int hour, int minute) {
+        PageRequest page = PageRequest.of(0, 1000, Sort.Direction.ASC, "order");
+        List<Batch> batches = StreamSupport.stream(repository.findAllActive(page).spliterator(), false).collect(Collectors.toList());
+        List<BatchArchive> batchArchives = archiveService.findToday();
+
+        // get only batch in the current period
+        batches = batches.stream().filter(e -> ((hour*60+minute) - (e.getStartHour()*60+e.getStartMinute())) < 5).collect(Collectors.toList());
+
+        // batches already runs today ?
+        batches = batches.stream().filter(e -> batchArchives.stream().noneMatch(a -> a.getBatch().getId().equals(e.getId()))).collect(Collectors.toList());
+
+        if (batches.isEmpty()) {
+            return;
+        }
+
+        // ajouter une file d'attente d'exécution
+
+        ExecutionQueue executionQueue = new ExecutionQueue(batches);
+        logstashService.startFromQueue(executionQueue);
     }
 }

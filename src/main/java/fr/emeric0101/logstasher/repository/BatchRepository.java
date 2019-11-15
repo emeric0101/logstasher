@@ -11,4 +11,5 @@ public interface BatchRepository extends ElasticsearchRepository<Batch, String> 
 
     @Query("{\"match\" : { \"activated\": true} }")
     Iterable<Batch> findAllActive(PageRequest page);
+
 }

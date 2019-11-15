@@ -1,9 +1,11 @@
 package fr.emeric0101.logstasher.configuration;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 import fr.emeric0101.logstasher.service.BatchService;
+import fr.emeric0101.logstasher.service.LogstashService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,11 +18,13 @@ public class SchedulerConfiguration {
     @Autowired
     BatchService batchService;
 
-    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+    @Autowired
+    LogstashService logstashService;
 
-    @Scheduled(cron = "0 30 23 * * ?")
-    public void reportCurrentTime() {
-        batchService.restartBatches();
+    @Scheduled(fixedRate = 60000)
+    public void pollingEvent() {
+        batchService.startScheduledBatched(LocalDateTime.now().getHour(), LocalDateTime.now().getMinute());
+        logstashService.dogWatch();
     }
 
 

@@ -9,6 +9,7 @@ import org.springframework.context.annotation.PropertySource;
 public class LogstashProperties {
 
     private String path;
+    private long timeout;
 
     public String getPath() {
         return path;
@@ -16,5 +17,13 @@ public class LogstashProperties {
 
     public void setPath(String path) {
         this.path = path;
+    }
+
+    public long getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(long timeout) {
+        this.timeout = timeout;
     }
 }

@@ -1,6 +1,8 @@
 package fr.emeric0101.logstasher.controller;
 
 import fr.emeric0101.logstasher.entity.Batch;
+import fr.emeric0101.logstasher.entity.BatchArchive;
+import fr.emeric0101.logstasher.service.ArchiveService;
 import fr.emeric0101.logstasher.service.BatchService;
 import fr.emeric0101.logstasher.service.LogstashService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +20,19 @@ public class BatchesController {
     @Autowired
     LogstashService logstashService;
 
+    @Autowired
+    ArchiveService batchArchiveService;
+
     @RequestMapping()
     @CrossOrigin(origins="*")
     public List<Batch> list() {
         return service.findAll();
+    }
+
+    @RequestMapping("/archive")
+    @CrossOrigin(origins="*")
+    public List<BatchArchive> archive() {
+        return batchArchiveService.findLastWeek();
     }
 
     @PostMapping()

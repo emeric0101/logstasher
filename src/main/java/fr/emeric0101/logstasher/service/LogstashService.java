@@ -3,8 +3,7 @@ package fr.emeric0101.logstasher.service;
 import fr.emeric0101.logstasher.configuration.LogstashProperties;
 import fr.emeric0101.logstasher.dto.ExecutionQueue;
 import fr.emeric0101.logstasher.dto.LogstashRunning;
-import fr.emeric0101.logstasher.entity.Batch;
-import fr.emeric0101.logstasher.repository.BatchRepository;
+import fr.emeric0101.logstasher.entity.BatchArchive;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -12,10 +11,7 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.Semaphore;
 
 @Service
@@ -29,6 +25,9 @@ public class LogstashService {
 
     @Autowired
     ExecutionQueueSerializer executionQueueSerializer;
+
+    @Autowired
+    ArchiveService archiveService;
 
 
 
@@ -46,7 +45,7 @@ public class LogstashService {
     private ExecutionQueue.ExecutionBatch currentBatch;
     private ExecutionQueue currentQueue;
     private String dataPath = "data_logstasher";
-
+    private BatchArchive currentBatchArchive;
 
     public LogstashService() {
         isWindows = System.getProperty("os.name").startsWith("Windows");
@@ -69,10 +68,14 @@ public class LogstashService {
             cmds.addAll(Arrays.asList(log_cmd.replaceAll("%LOGSTASH_PATH%", logstashProperties.getPath()).split(" ")));
             // if batch, run it
             if (currentBatch != null) {
+                // archive execution batch state
                 cmds.addAll(new ArrayList<String>(){{add("-e"); add("\"" + currentBatch.getBatch().getContent()
                         .replace("\"", "\\\"").replace("\t", " ")
                          + "\"");}});
                 currentBatch.setState("RUNNING");
+                // save archive
+                currentBatchArchive = archiveService.saveArchive(currentBatch.getBatch(), new Date(), null, currentBatch.getState());
+
                 executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "Starting batch");
                 sendState();
             }
@@ -135,6 +138,9 @@ public class LogstashService {
             } else {
                 currentBatch.setState("DONE");
             }
+            currentBatchArchive.setEndTime(new Date());
+            currentBatchArchive.setState(currentBatch.getState());
+            archiveService.save(currentBatchArchive);
             sendState();
             // next step ?
             if (queueIterator.hasNext()) {
@@ -170,12 +176,13 @@ public class LogstashService {
     public void restart() {
         startDate = executionQueueSerializer.getDate();
 
-        stopLogstash();
+        stopLogstash(false);
         buffer.clear();
         start();
     }
 
-    public void stopLogstash() {
+
+    public void stopLogstash(boolean continueQueue) {
         if (logstashInstance != null && logstashInstance.isAlive()) {
             changeState("KILLING");
 
@@ -198,9 +205,26 @@ public class LogstashService {
 
         }
         changeState("STOPPED");
-        logstashInstance = null;
-        currentQueue = null;
-        currentBatch = null;
+
+        if (currentBatchArchive != null) {
+            currentBatchArchive.setEndTime(new Date());
+            currentBatchArchive.setState("INTERRUPTED");
+            archiveService.save(currentBatchArchive);
+        }
+
+        // continue queue ?
+        if (continueQueue && queueIterator != null && queueIterator.hasNext()) {
+            currentBatch = queueIterator.next();
+            // start again :)
+            start();
+        } else {
+            logstashInstance = null;
+            currentQueue = null;
+            currentBatch = null;
+            currentBatchArchive = null;
+        }
+
+
     }
 
     public LogstashRunning getRunning() {
@@ -224,15 +248,12 @@ public class LogstashService {
 
     public void startFromQueue(ExecutionQueue queue) {
         startDate = executionQueueSerializer.getDate();
-        if (currentQueue != null) {
-            throw new RuntimeException("Queue is already running");
-        }
         if (!queue.getQueue().iterator().hasNext()) {
             return;
         }
-        currentQueue = queue;
-        stopLogstash();
+        stopLogstash(false);
         buffer.clear();
+        currentQueue = queue;
 
         queueIterator = queue.getQueue().iterator();
 
@@ -250,5 +271,15 @@ public class LogstashService {
      */
     private void sendState() {
         template.convertAndSend("/state", getRunning());
+    }
+
+    /**
+     * Check that no batch is stucked in logstash (timeout in minute)
+     */
+    public void dogWatch() {
+        Date date = new Date();
+        if (this.currentBatch != null && (date.getTime() - this.currentBatchArchive.getStartTime().getTime()) > currentBatch.getBatch().getTimeout()*60000) {
+            stopLogstash(true);
+        }
     }
 }

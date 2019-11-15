@@ -30,6 +30,6 @@ public class LogstashController {
     @GetMapping("/stop")
     @CrossOrigin(origins = "*")
     public void stop() {
-        logstashService.stopLogstash();
+        logstashService.stopLogstash(false);
     }
 }
