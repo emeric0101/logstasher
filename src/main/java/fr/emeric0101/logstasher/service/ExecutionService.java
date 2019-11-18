@@ -5,6 +5,7 @@ import fr.emeric0101.logstasher.dto.LogstashRunning;
 import fr.emeric0101.logstasher.dto.RestRequest;
 import fr.emeric0101.logstasher.entity.Batch;
 import fr.emeric0101.logstasher.entity.BatchArchive;
+import fr.emeric0101.logstasher.repository.BatchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,12 @@ public class ExecutionService {
 
     @Autowired
     RestService restService;
+
+    @Autowired
+    BatchRepository batchRepository;
+
+    @Autowired
+            MailService mailService;
 
     String startDate = null;
 
@@ -157,7 +164,11 @@ public class ExecutionService {
                     if (retval == 0) {
                         currentBatchArchive.setState("DONE");
                     } else {
-                        currentBatchArchive.setState("ERROR");
+                        if (!currentBatch.getState().equals("INTERRUPTED")) {
+                            currentBatchArchive.setState("ERROR");
+                            mailService.sendSimpleMessage("emeric.baveux.external@airbus.com", "Logstasher : error on batch " + currentBatch.getBatch().getId(),
+                                    "The batch " + currentBatch.getBatch().getId() + " got an error\n\n" + currentBatch.getOutput());
+                        }
                     }
                     currentBatchArchive.setEndTime(new Date());
                     archiveService.save(currentBatchArchive);
@@ -228,6 +239,13 @@ public class ExecutionService {
         archiveService.save(new BatchArchive(){{
             setState("INIT");
             setStartTime(new Date());
+        }});
+        batchRepository.save(new Batch() {{
+            setId("test");
+            setActivated(false);
+            setContent("input {} output {}");
+            setOrder(0);
+            setTimeout(60);
         }});
     }
 }

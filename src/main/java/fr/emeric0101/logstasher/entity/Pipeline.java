@@ -3,7 +3,7 @@ package fr.emeric0101.logstasher.entity;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 
-@Document(indexName = "pipelines")
+@Document(indexName = "logstasher_pipelines")
 public class Pipeline {
     @Id
     private String id;

@@ -7,7 +7,7 @@ import org.springframework.data.elasticsearch.annotations.Document;
 import java.util.Date;
 import java.util.List;
 
-@Document(indexName = "batch")
+@Document(indexName = "logstasher_batch", type = "doc")
 public class Batch {
     @Id
     private String id;
