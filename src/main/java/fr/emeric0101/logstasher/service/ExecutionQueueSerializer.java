@@ -25,7 +25,7 @@ public class ExecutionQueueSerializer {
     public void saveLog(String date, String id, String data) {
         File pipelineFile = new File("log/" + date + "/" + id + ".log");
         if (!pipelineFile.exists()) {
-            String buffer = "Logstasher - (https://github.com/emeric0101)";
+            String buffer = "Logstasher - (Emeric BAVEUX)";
             buffer += "\n";
             buffer += "\n";
             buffer += "Batch : " + id;

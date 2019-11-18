@@ -17,9 +17,6 @@ public class PipelineController {
     @Autowired
     PipelineService pipelineService;
 
-    @Autowired
-    LogstashService logstashService;
-
     @RequestMapping()
     @CrossOrigin(origins="*")
     public Iterable<Pipeline> list() {

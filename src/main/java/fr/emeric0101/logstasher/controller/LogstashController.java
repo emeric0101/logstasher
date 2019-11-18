@@ -1,6 +1,7 @@
 package fr.emeric0101.logstasher.controller;
 
 import fr.emeric0101.logstasher.dto.LogstashRunning;
+import fr.emeric0101.logstasher.service.ExecutionService;
 import fr.emeric0101.logstasher.service.LogstashService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -14,22 +15,28 @@ import java.util.List;
 @RequestMapping("/logstash")
 public class LogstashController {
     @Autowired
-    LogstashService logstashService;
+    ExecutionService executionService;
 
     @GetMapping("/restart")
     @CrossOrigin(origins = "*")
     public void restart() {
-        logstashService.restart();
+        executionService.restart();
     }
 
     @GetMapping("/running")
     @CrossOrigin(origins = "*")
     public LogstashRunning getRunning() {
-        return logstashService.getRunning();
+        return executionService.getRunning();
     }
     @GetMapping("/stop")
     @CrossOrigin(origins = "*")
     public void stop() {
-        logstashService.stopLogstash(false);
+        executionService.stopLogstash(false);
+    }
+
+    @GetMapping("/init")
+    @CrossOrigin(origins = "*")
+    public void init() {
+        executionService.init();
     }
 }

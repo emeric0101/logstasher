@@ -18,9 +18,6 @@ public class BatchesController {
     BatchService service;
 
     @Autowired
-    LogstashService logstashService;
-
-    @Autowired
     ArchiveService batchArchiveService;
 
     @RequestMapping()

@@ -24,7 +24,7 @@ public class BatchService {
     GeneratorService generatorService;
 
     @Autowired
-    LogstashService logstashService;
+    ExecutionService executionService;
 
     @Autowired
     ArchiveService archiveService;
@@ -53,7 +53,7 @@ public class BatchService {
             throw new RuntimeException("Batch not found");
         }
         ExecutionQueue queue = new ExecutionQueue(new ArrayList<Batch>(){{add(batch.get());}});
-        logstashService.startFromQueue(queue);
+        executionService.startFromQueue(queue);
     }
 
     public void restartBatches() {
@@ -61,7 +61,7 @@ public class BatchService {
         List<Batch> batches = StreamSupport.stream(repository.findAllActive(page).spliterator(), false).collect(Collectors.toList());
 
         ExecutionQueue queue = new ExecutionQueue(batches);
-        logstashService.startFromQueue(queue);
+        executionService.startFromQueue(queue);
     }
 
     public void startScheduledBatched(int hour, int minute) {
@@ -73,7 +73,9 @@ public class BatchService {
         batches = batches.stream().filter(e -> ((hour*60+minute) - (e.getStartHour()*60+e.getStartMinute())) < 5).collect(Collectors.toList());
 
         // batches already runs today ?
-        batches = batches.stream().filter(e -> batchArchives.stream().noneMatch(a -> a.getBatch().getId().equals(e.getId()))).collect(Collectors.toList());
+        if (batchArchives != null) {
+            batches = batches.stream().filter(e -> batchArchives.stream().noneMatch(a -> a.getBatch().getId().equals(e.getId()))).collect(Collectors.toList());
+        }
 
         if (batches.isEmpty()) {
             return;
@@ -82,6 +84,6 @@ public class BatchService {
         // ajouter une file d'attente d'exécution
 
         ExecutionQueue executionQueue = new ExecutionQueue(batches);
-        logstashService.startFromQueue(executionQueue);
+        executionService.startFromQueue(executionQueue);
     }
 }

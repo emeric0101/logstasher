@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.Date;
 
 import fr.emeric0101.logstasher.service.BatchService;
+import fr.emeric0101.logstasher.service.ExecutionService;
 import fr.emeric0101.logstasher.service.LogstashService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,12 +20,12 @@ public class SchedulerConfiguration {
     BatchService batchService;
 
     @Autowired
-    LogstashService logstashService;
+    ExecutionService executionService;
 
     @Scheduled(fixedRate = 60000)
     public void pollingEvent() {
         batchService.startScheduledBatched(LocalDateTime.now().getHour(), LocalDateTime.now().getMinute());
-        logstashService.dogWatch();
+        executionService.dogWatch();
     }
 
 

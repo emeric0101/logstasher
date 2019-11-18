@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
 import java.util.concurrent.Semaphore;
+import java.util.function.Consumer;
 
 @Service
 public class LogstashService {
@@ -20,48 +21,28 @@ public class LogstashService {
     @Autowired
     LogstashProperties logstashProperties;
 
-    @Autowired
-    SimpMessagingTemplate template;
-
-    @Autowired
-    ExecutionQueueSerializer executionQueueSerializer;
-
-    @Autowired
-    ArchiveService archiveService;
-
-
+    boolean isWindows;
 
     Process logstashInstance = null;
     Thread bufferThread;
     Semaphore semaphore = new Semaphore(1);
+    private String dataPath = "data_logstasher";
 
     List<String> buffer = new ArrayList<String>();
-    String state = "STOPPED";
 
-    String startDate = null;
-
-    boolean isWindows;
-    private Iterator<ExecutionQueue.ExecutionBatch> queueIterator;
-    private ExecutionQueue.ExecutionBatch currentBatch;
-    private ExecutionQueue currentQueue;
-    private String dataPath = "data_logstasher";
-    private BatchArchive currentBatchArchive;
 
     public LogstashService() {
         isWindows = System.getProperty("os.name").startsWith("Windows");
     }
 
 
-
     /**
      * Start logstash with args
      */
-    public void start() {
+    public void start(ExecutionQueue.ExecutionBatch currentBatch, Consumer<Integer> endCallback, Consumer<String> logAddLines) {
         if (logstashInstance != null && logstashInstance.isAlive()) {
             return;
         }
-        changeState("STARTING");
-
 
         try {
             List<String> cmds = new ArrayList<String>();
@@ -69,15 +50,12 @@ public class LogstashService {
             // if batch, run it
             if (currentBatch != null) {
                 // archive execution batch state
-                cmds.addAll(new ArrayList<String>(){{add("-e"); add("\"" + currentBatch.getBatch().getContent()
-                        .replace("\"", "\\\"").replace("\t", " ")
-                         + "\"");}});
-                currentBatch.setState("RUNNING");
-                // save archive
-                currentBatchArchive = archiveService.saveArchive(currentBatch.getBatch(), new Date(), null, currentBatch.getState());
-
-                executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "Starting batch");
-                sendState();
+                cmds.addAll(new ArrayList<String>() {{
+                    add("-e");
+                    add("\"" + currentBatch.getBatch().getContent()
+                            .replace("\"", "\\\"").replace("\t", " ")
+                            + "\"");
+                }});
             }
             cmds.add("--path.data");
             cmds.add(logstashProperties.getPath() + (isWindows ? "\\" : "/") + dataPath);
@@ -87,38 +65,29 @@ public class LogstashService {
 
 
             logstashInstance = pb.start();
-            bufferThread =  new Thread(() -> {
+            bufferThread = new Thread(() -> {
                 while (logstashInstance.isAlive()) {
                     try {
                         BufferedReader input = new BufferedReader(new InputStreamReader(logstashInstance.getInputStream()));
                         String line = input.readLine();
                         if (line != null) {
-                            if (state == "STARTING" && line.contains("Successfully started Logstash")) {
-                                changeState("RUNNING");
-
-                            }
                             semaphore.acquire();
                             if (currentBatch != null) {
                                 currentBatch.getOutput().add(line);
                             }
                             buffer.add(line);
-                            executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), line);
 
                             semaphore.release();
-                            sendState();
+                            logAddLines.accept(line);
                         }
-                    }
-                    catch (InterruptedException e) {
+                    } catch (InterruptedException e) {
                         e.printStackTrace();
-                    }
-                    catch (IOException e) {
+                    } catch (IOException e) {
                         e.printStackTrace();
                     }
 
                 }
-                executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "End with " + logstashInstance.exitValue());
-
-                processEnded(logstashInstance.exitValue());
+                endCallback.accept(logstashInstance.exitValue());
             });
             bufferThread.start();
             // Start the process buffer
@@ -127,66 +96,10 @@ public class LogstashService {
         }
     }
 
-    /**
-     * If a batchQueue is running, go into next step
-     * @param exitValue
-     */
-    private void processEnded(int exitValue) {
-        if (currentBatch != null) {
-            if (exitValue != 0) {
-                currentBatch.setState("ERROR");
-            } else {
-                currentBatch.setState("DONE");
-            }
-            currentBatchArchive.setEndTime(new Date());
-            currentBatchArchive.setState(currentBatch.getState());
-            archiveService.save(currentBatchArchive);
-            sendState();
-            // next step ?
-            if (queueIterator.hasNext()) {
-                currentBatch = queueIterator.next();
-                // start again :)
-                start();
-            } else {
-                // batch has error ?
-                // save the log of the current batch
-                if (currentQueue.getQueue().stream().anyMatch(e -> e.getState().equals("ERROR"))) {
-                    changeState("ERROR");
-                } else {
-                    changeState("DONE");
-                }
-                currentQueue = null;
-            }
-
-        } else {
-            // pipeline
-            if (exitValue != 0) {
-                changeState("ERROR");
-
-            } else {
-                changeState("STOPPED");
-
-            }
-        }
-
-
-    }
-
-
-    public void restart() {
-        startDate = executionQueueSerializer.getDate();
-
-        stopLogstash(false);
-        buffer.clear();
-        start();
-    }
-
-
-    public void stopLogstash(boolean continueQueue) {
+    public void stopLogstash() {
         if (logstashInstance != null && logstashInstance.isAlive()) {
-            changeState("KILLING");
-
             logstashInstance.destroy();
+
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
@@ -202,84 +115,40 @@ public class LogstashService {
                 }
             }
             bufferThread.interrupt();
-
-        }
-        changeState("STOPPED");
-
-        if (currentBatchArchive != null) {
-            currentBatchArchive.setEndTime(new Date());
-            currentBatchArchive.setState("INTERRUPTED");
-            archiveService.save(currentBatchArchive);
-        }
-
-        // continue queue ?
-        if (continueQueue && queueIterator != null && queueIterator.hasNext()) {
-            currentBatch = queueIterator.next();
-            // start again :)
-            start();
-        } else {
             logstashInstance = null;
-            currentQueue = null;
-            currentBatch = null;
-            currentBatchArchive = null;
+
         }
-
-
     }
 
-    public LogstashRunning getRunning() {
-        LogstashRunning running = new LogstashRunning();
+    public List<String> getBuffer() {
         try {
             semaphore.acquire();
-            running.setState(state);
-            running.setQueue(currentQueue);
-            running.setBuffer(buffer);
-        }
-        catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        finally {
+            return new ArrayList<String>() {{
+                addAll(buffer);
+            }};
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Unable to get semaphone on logstash buffer");
+        } finally {
             semaphore.release();
         }
-
-        return running;
     }
 
-
-    public void startFromQueue(ExecutionQueue queue) {
-        startDate = executionQueueSerializer.getDate();
-        if (!queue.getQueue().iterator().hasNext()) {
-            return;
+    public void clearBuffer() {
+        try {
+            semaphore.acquire();
+            buffer.clear();
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Unable to get semaphone on logstash buffer");
+        } finally {
+            semaphore.release();
         }
-        stopLogstash(false);
-        buffer.clear();
-        currentQueue = queue;
-
-        queueIterator = queue.getQueue().iterator();
-
-        currentBatch = queueIterator.next();
-        start();
     }
 
-    private void changeState(String state) {
-        this.state = state;
-        sendState();
-    }
-
-    /**
-     * Send the current state the user
-     */
-    private void sendState() {
-        template.convertAndSend("/state", getRunning());
-    }
-
-    /**
-     * Check that no batch is stucked in logstash (timeout in minute)
-     */
-    public void dogWatch() {
-        Date date = new Date();
-        if (this.currentBatch != null && (date.getTime() - this.currentBatchArchive.getStartTime().getTime()) > currentBatch.getBatch().getTimeout()*60000) {
-            stopLogstash(true);
+    public String getState() {
+        if (logstashInstance == null || !logstashInstance.isAlive()){
+            return "STOPPED";
+        } else {
+            return "RUNNING";
         }
     }
 }

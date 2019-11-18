@@ -4,6 +4,7 @@ public class RestRequest {
     private String url;
     private String type;
     private String body;
+    private String method;
 
     public String getUrl() {
         return url;
@@ -27,5 +28,13 @@ public class RestRequest {
 
     public void setBody(String body) {
         this.body = body;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
     }
 }
