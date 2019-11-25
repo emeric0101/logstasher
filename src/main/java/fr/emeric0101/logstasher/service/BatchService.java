@@ -10,6 +10,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -28,6 +29,8 @@ public class BatchService {
 
     @Autowired
     ArchiveService archiveService;
+
+    Date scheduledWorkingSince = null;
 
 
     public List<Batch> findAll() {
@@ -52,7 +55,7 @@ public class BatchService {
         if (!batch.isPresent()) {
             throw new RuntimeException("Batch not found");
         }
-        ExecutionQueue queue = new ExecutionQueue(new ArrayList<Batch>(){{add(batch.get());}});
+        ExecutionQueue queue = new ExecutionQueue(new ArrayList<Batch>(){{add(batch.get());}}, r -> {});
         executionService.startFromQueue(queue);
     }
 
@@ -60,14 +63,23 @@ public class BatchService {
         PageRequest page = PageRequest.of(0, 1000, Sort.Direction.ASC, "order");
         List<Batch> batches = StreamSupport.stream(repository.findAllActive(page).spliterator(), false).collect(Collectors.toList());
 
-        ExecutionQueue queue = new ExecutionQueue(batches);
+        ExecutionQueue queue = new ExecutionQueue(batches, r -> {});
         executionService.startFromQueue(queue);
     }
 
+
     public void startScheduledBatched(int hour, int minute) {
+        // skip if already working
+
+        if (scheduledWorkingSince != null && (new Date()).getTime() - scheduledWorkingSince.getTime() > 3600*1000) {
+            System.out.println("FATAL ERROR : Timeout on scheduler, this must never happen !!!! Probably unable to shutdown logstash automatically");
+            scheduledWorkingSince = null;
+        }
+
+        if (scheduledWorkingSince != null) {return;}
         PageRequest page = PageRequest.of(0, 1000, Sort.Direction.ASC, "order");
         List<Batch> batches = StreamSupport.stream(repository.findAllActive(page).spliterator(), false).collect(Collectors.toList());
-        List<BatchArchive> batchArchives = archiveService.findToday();
+        List<BatchArchive> batchArchives = archiveService.findToday().stream().filter(e -> e.getBatch() != null).collect(Collectors.toList());
 
         // get only batch in the current period
         if (batches == null) {
@@ -84,9 +96,12 @@ public class BatchService {
             return;
         }
 
+        scheduledWorkingSince = new Date();
+
+
         // ajouter une file d'attente d'exécution
 
-        ExecutionQueue executionQueue = new ExecutionQueue(batches);
+        ExecutionQueue executionQueue = new ExecutionQueue(batches, (r) -> scheduledWorkingSince = null);
         executionService.startFromQueue(executionQueue);
     }
 }

@@ -64,4 +64,8 @@ public class ArchiveService {
                 .spliterator(), false).collect(Collectors.toList());
 
     }
+
+    public void clear() {
+        batchArchiveRepository.deleteAll();
+    }
 }

@@ -11,6 +11,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,6 +47,7 @@ public class ExecutionService {
     private BatchArchive currentBatchArchive;
 
 
+
     /**
      * If a batchQueue is running, go into next step
      *
@@ -74,6 +76,9 @@ public class ExecutionService {
                     changeState("ERROR");
                 } else {
                     changeState("DONE");
+                }
+                if (currentQueue != null) {
+                    currentQueue.getEndCallback().accept("DONE");
                 }
                 currentBatch = null;
                 currentQueue = null;
@@ -112,7 +117,10 @@ public class ExecutionService {
         return running;
     }
 
-
+    /**
+     *
+     * @param queue
+     */
     public void startFromQueue(ExecutionQueue queue) {
         startDate = executionQueueSerializer.getDate();
         if (!queue.getQueue().iterator().hasNext()) {
@@ -147,6 +155,7 @@ public class ExecutionService {
             currentQueue = null;
             currentBatch = null;
             currentBatchArchive = null;
+            // trigge queue ended
         }
 
     }
@@ -236,6 +245,7 @@ public class ExecutionService {
     }
 
     public void init() {
+        archiveService.clear();
         archiveService.save(new BatchArchive(){{
             setState("INIT");
             setStartTime(new Date());

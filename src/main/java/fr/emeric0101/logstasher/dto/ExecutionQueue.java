@@ -4,13 +4,16 @@ import fr.emeric0101.logstasher.entity.Batch;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class ExecutionQueue {
-    public List<ExecutionBatch> queue;
+    private List<ExecutionBatch> queue;
+    private Consumer<String> endCallback;
 
-    public ExecutionQueue(List<Batch> batches) {
+    public ExecutionQueue(List<Batch> batches, Consumer<String> endCallback) {
         queue = batches.stream().map(e -> new ExecutionBatch(e)).collect(Collectors.toList());
+        this.endCallback =  endCallback;
     }
 
 
@@ -20,6 +23,14 @@ public class ExecutionQueue {
 
     public void setQueue(List<ExecutionBatch> queue) {
         this.queue = queue;
+    }
+
+    public Consumer<String> getEndCallback() {
+        return endCallback;
+    }
+
+    public void setEndCallback(Consumer<String> endCallback) {
+        this.endCallback = endCallback;
     }
 
 

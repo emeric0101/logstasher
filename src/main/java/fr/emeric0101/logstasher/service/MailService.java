@@ -13,7 +13,7 @@ public class MailService {
 
     public void sendSimpleMessage(
             String to, String subject, String text) {
-        try {
+      /*  try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom("noreply.child2.VALIDATION@airbus.com");
             message.setTo(to);
@@ -22,7 +22,7 @@ public class MailService {
             emailSender.send(message);
         } catch (Exception e) {
             e.printStackTrace();
-        }
+        }*/
 
     }
 }

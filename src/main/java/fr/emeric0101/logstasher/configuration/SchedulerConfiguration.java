@@ -22,7 +22,7 @@ public class SchedulerConfiguration {
     @Autowired
     ExecutionService executionService;
 
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 30000)
     public void pollingEvent() {
         batchService.startScheduledBatched(LocalDateTime.now().getHour(), LocalDateTime.now().getMinute());
         executionService.dogWatch();
