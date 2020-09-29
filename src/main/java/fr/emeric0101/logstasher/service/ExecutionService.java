@@ -258,4 +258,12 @@ public class ExecutionService {
             setTimeout(60);
         }});
     }
+
+    public void clear() {
+        archiveService.clear();
+        archiveService.save(new BatchArchive(){{
+            setState("INIT");
+            setStartTime(new Date());
+        }});
+    }
 }

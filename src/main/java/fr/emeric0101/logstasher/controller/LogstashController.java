@@ -39,4 +39,11 @@ public class LogstashController {
     public void init() {
         executionService.init();
     }
+
+
+    @GetMapping("/clear")
+    @CrossOrigin(origins = "*")
+    public void clear() {
+        executionService.clear();
+    }
 }

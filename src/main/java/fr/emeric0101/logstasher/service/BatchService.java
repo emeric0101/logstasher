@@ -85,7 +85,7 @@ public class BatchService {
         if (batches == null) {
             return;
         }
-        batches = batches.stream().filter(e -> ((hour*60+minute) - (e.getStartHour()*60+e.getStartMinute())) < 5).collect(Collectors.toList());
+        batches = batches.stream().filter(e -> Math.abs((hour*60+minute) - (e.getStartHour()*60+e.getStartMinute())) < 5).collect(Collectors.toList());
 
         // batches already runs today ?
         if (batchArchives != null) {
