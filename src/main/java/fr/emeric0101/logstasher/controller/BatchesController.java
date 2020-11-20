@@ -1,10 +1,11 @@
 package fr.emeric0101.logstasher.controller;
 
+import fr.emeric0101.logstasher.dto.LogstashRunning;
 import fr.emeric0101.logstasher.entity.Batch;
 import fr.emeric0101.logstasher.entity.BatchArchive;
 import fr.emeric0101.logstasher.service.ArchiveService;
+import fr.emeric0101.logstasher.service.BatchExecutionService;
 import fr.emeric0101.logstasher.service.BatchService;
-import fr.emeric0101.logstasher.service.LogstashService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +20,16 @@ public class BatchesController {
 
     @Autowired
     ArchiveService batchArchiveService;
+
+    @Autowired
+    BatchExecutionService batchExecutionService;
+
+    @GetMapping("/init")
+    @CrossOrigin(origins = "*")
+    public void init() {
+        batchExecutionService.init();
+    }
+
 
     @RequestMapping()
     @CrossOrigin(origins="*")
@@ -56,4 +67,19 @@ public class BatchesController {
     public void restartBatches() {
         service.restartBatches();
     }
+
+
+
+    @GetMapping("/stop/{instanceName}")
+    @CrossOrigin(origins = "*")
+    public void stop(@PathVariable("instanceName") final String instanceName) {
+        batchExecutionService.stopLogstash(false);
+    }
+
+    @GetMapping("/clear")
+    @CrossOrigin(origins = "*")
+    public void clear() {
+        batchExecutionService.clear();
+    }
+
 }

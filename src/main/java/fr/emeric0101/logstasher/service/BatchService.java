@@ -25,7 +25,7 @@ public class BatchService {
     GeneratorService generatorService;
 
     @Autowired
-    ExecutionService executionService;
+    BatchExecutionService batchExecutionService;
 
     @Autowired
     ArchiveService archiveService;
@@ -56,7 +56,7 @@ public class BatchService {
             throw new RuntimeException("Batch not found");
         }
         ExecutionQueue queue = new ExecutionQueue(new ArrayList<Batch>(){{add(batch.get());}}, r -> {});
-        executionService.startFromQueue(queue);
+        batchExecutionService.startFromQueue(queue);
     }
 
     public void restartBatches() {
@@ -64,7 +64,7 @@ public class BatchService {
         List<Batch> batches = StreamSupport.stream(repository.findAllActive(page).spliterator(), false).collect(Collectors.toList());
 
         ExecutionQueue queue = new ExecutionQueue(batches, r -> {});
-        executionService.startFromQueue(queue);
+        batchExecutionService.startFromQueue(queue);
     }
 
 
@@ -102,6 +102,6 @@ public class BatchService {
         // ajouter une file d'attente d'exécution
 
         ExecutionQueue executionQueue = new ExecutionQueue(batches, (r) -> scheduledWorkingSince = null);
-        executionService.startFromQueue(executionQueue);
+        batchExecutionService.startFromQueue(executionQueue);
     }
 }

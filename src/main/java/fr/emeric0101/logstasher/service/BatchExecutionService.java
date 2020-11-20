@@ -1,5 +1,6 @@
 package fr.emeric0101.logstasher.service;
 
+import fr.emeric0101.logstasher.configuration.LogstashProperties;
 import fr.emeric0101.logstasher.dto.ExecutionQueue;
 import fr.emeric0101.logstasher.dto.LogstashRunning;
 import fr.emeric0101.logstasher.dto.RestRequest;
@@ -11,11 +12,10 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Service
-public class ExecutionService {
+public class BatchExecutionService {
 
 
     @Autowired
@@ -28,16 +28,17 @@ public class ExecutionService {
     ArchiveService archiveService;
 
     @Autowired
-    LogstashService logstashService;
-
-    @Autowired
     RestService restService;
 
     @Autowired
     BatchRepository batchRepository;
 
     @Autowired
-            MailService mailService;
+    MailService mailService;
+
+    @Autowired
+    LogstashService logstashService;
+
 
     String startDate = null;
 
@@ -46,7 +47,7 @@ public class ExecutionService {
     private ExecutionQueue currentQueue;
     private BatchArchive currentBatchArchive;
 
-
+    final String INSTANCE = "_batch";
 
     /**
      * If a batchQueue is running, go into next step
@@ -63,7 +64,7 @@ public class ExecutionService {
             currentBatchArchive.setEndTime(new Date());
             currentBatchArchive.setState(currentBatch.getState());
             archiveService.save(currentBatchArchive);
-            sendState();
+            logstashService.sendState(INSTANCE);
             // next step ?
             if (queueIterator.hasNext()) {
                 currentBatch = queueIterator.next();
@@ -99,23 +100,10 @@ public class ExecutionService {
     }
 
 
-    public void restart() {
-        startDate = executionQueueSerializer.getDate();
-
-        stopLogstash(false);
-        logstashService.clearBuffer();
-        startBatch(null);
-    }
 
 
-    public LogstashRunning getRunning() {
-        LogstashRunning running = new LogstashRunning();
-        running.setState(logstashService.getState());
-        running.setQueue(currentQueue);
-        running.setBuffer(logstashService.getBuffer());
 
-        return running;
-    }
+
 
     /**
      *
@@ -127,7 +115,7 @@ public class ExecutionService {
             return;
         }
         stopLogstash(false);
-        logstashService.clearBuffer();
+        logstashService.clearBuffer(INSTANCE);
         currentQueue = queue;
 
         queueIterator = queue.getQueue().iterator();
@@ -137,13 +125,13 @@ public class ExecutionService {
     }
 
     public void stopLogstash(boolean continueQueue) {
-        logstashService.stopLogstash();
+        logstashService.stop(INSTANCE);
 
         if (currentBatchArchive != null && currentBatchArchive.getEndTime() == null) {
             currentBatchArchive.setEndTime(new Date());
             currentBatchArchive.setState("INTERRUPTED");
             archiveService.save(currentBatchArchive);
-            sendState();
+            logstashService.sendState(INSTANCE);
         }
 
         // continue queue ?
@@ -166,9 +154,8 @@ public class ExecutionService {
         // save archive
         currentBatchArchive = archiveService.saveArchive(currentBatch.getBatch(), new Date(), null, currentBatch.getState());
         executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "Starting batch");
-        changeState("STARTING");
 
-        logstashService.start(currentBatch,
+        logstashService.startBatches(INSTANCE, currentBatch,
                 (retval) -> {
                     if (retval == 0) {
                         currentBatchArchive.setState("DONE");
@@ -181,7 +168,7 @@ public class ExecutionService {
                     }
                     currentBatchArchive.setEndTime(new Date());
                     archiveService.save(currentBatchArchive);
-                    sendState();
+                    logstashService.sendState(INSTANCE);
 
                     executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "End with " + retval);
                     // hook after running
@@ -194,6 +181,8 @@ public class ExecutionService {
                     executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), newLineLog);
 
                 });
+        changeState("STARTING");
+
     }
 
 
@@ -204,14 +193,7 @@ public class ExecutionService {
             archiveService.save(currentBatchArchive);
         }
 
-        sendState();
-    }
-
-    /**
-     * Send the current state the user
-     */
-    private void sendState() {
-        template.convertAndSend("/state", getRunning());
+        logstashService.sendState(INSTANCE);
     }
 
 

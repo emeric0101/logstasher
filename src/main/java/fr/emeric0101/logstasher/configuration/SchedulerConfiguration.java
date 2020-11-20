@@ -1,12 +1,9 @@
 package fr.emeric0101.logstasher.configuration;
 
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.util.Date;
 
 import fr.emeric0101.logstasher.service.BatchService;
-import fr.emeric0101.logstasher.service.ExecutionService;
-import fr.emeric0101.logstasher.service.LogstashService;
+import fr.emeric0101.logstasher.service.BatchExecutionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,12 +17,12 @@ public class SchedulerConfiguration {
     BatchService batchService;
 
     @Autowired
-    ExecutionService executionService;
+    BatchExecutionService batchExecutionService;
 
     @Scheduled(fixedRate = 30000)
     public void pollingEvent() {
         batchService.startScheduledBatched(LocalDateTime.now().getHour(), LocalDateTime.now().getMinute());
-        executionService.dogWatch();
+        batchExecutionService.dogWatch();
     }
 
 
