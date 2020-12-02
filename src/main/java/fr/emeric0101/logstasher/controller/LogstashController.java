@@ -31,7 +31,11 @@ public class LogstashController {
         return logstashService.getRunningAll();
     }
 
-
+    @GetMapping("/clearData/{instanceName}")
+    @CrossOrigin(origins = "*")
+    public void clearData(@PathVariable("instanceName") final String instanceName) {
+        logstashService.getInstance(instanceName).clearData();
+    }
 
 
 }

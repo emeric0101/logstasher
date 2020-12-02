@@ -12,6 +12,7 @@ public class LogstashRunning {
     private String instance;
     private Batch batch;
     private List<Pipeline> pipelines;
+
     private String started;
 
     public String getState() {

@@ -1,7 +1,7 @@
 package fr.emeric0101.logstasher.service;
 
 import fr.emeric0101.logstasher.dto.ExecutionQueue;
-import fr.emeric0101.logstasher.entity.BatchArchive;
+import fr.emeric0101.logstasher.entity.ExecutionArchive;
 import fr.emeric0101.logstasher.entity.Batch;
 import fr.emeric0101.logstasher.repository.BatchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +28,7 @@ public class BatchService {
     BatchExecutionService batchExecutionService;
 
     @Autowired
-    ArchiveService archiveService;
+    ExecutionArchiveService executionArchiveService;
 
     Date scheduledWorkingSince = null;
 
@@ -79,17 +79,17 @@ public class BatchService {
         if (scheduledWorkingSince != null) {return;}
         PageRequest page = PageRequest.of(0, 1000, Sort.Direction.ASC, "order");
         List<Batch> batches = StreamSupport.stream(repository.findAllActive(page).spliterator(), false).collect(Collectors.toList());
-        List<BatchArchive> batchArchives = archiveService.findToday().stream().filter(e -> e.getBatch() != null).collect(Collectors.toList());
+        List<ExecutionArchive> executionArchives = executionArchiveService.findToday().stream().filter(e -> e.getBatch() != null).collect(Collectors.toList());
 
         // get only batch in the current period
         if (batches == null) {
             return;
         }
-        batches = batches.stream().filter(e -> Math.abs((hour*60+minute) - (e.getStartHour()*60+e.getStartMinute())) < 5).collect(Collectors.toList());
+        batches = batches.stream().filter(e -> (e.getStartMinute() != null && e.getStartMinute() != null) && Math.abs((hour*60+minute) - (e.getStartHour()*60+e.getStartMinute())) < 5).collect(Collectors.toList());
 
         // batches already runs today ?
-        if (batchArchives != null) {
-            batches = batches.stream().filter(e -> batchArchives.stream().noneMatch(a -> a.getBatch().getId().equals(e.getId()))).collect(Collectors.toList());
+        if (executionArchives != null) {
+            batches = batches.stream().filter(e -> executionArchives.stream().noneMatch(a -> a.getBatch().getId().equals(e.getId()))).collect(Collectors.toList());
         }
 
         if (batches.isEmpty()) {

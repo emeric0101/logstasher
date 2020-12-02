@@ -1,10 +1,10 @@
 package fr.emeric0101.logstasher.service;
 
-import fr.emeric0101.logstasher.entity.BatchArchive;
+import fr.emeric0101.logstasher.entity.ExecutionArchive;
 import fr.emeric0101.logstasher.entity.Batch;
-import fr.emeric0101.logstasher.repository.BatchArchiveRepository;
+import fr.emeric0101.logstasher.entity.Pipeline;
+import fr.emeric0101.logstasher.repository.ExecutionArchiveRepository;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
-import org.elasticsearch.index.query.QueryShardException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -18,25 +18,26 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 @Service
-public class ArchiveService {
+public class ExecutionArchiveService {
 
     @Autowired
-    BatchArchiveRepository batchArchiveRepository;
+    ExecutionArchiveRepository executionArchiveRepository;
 
-    public BatchArchive saveArchive(Batch batch, Date startTime, Date endTime, String state) {
-        return batchArchiveRepository.save(new BatchArchive(){{
+    public ExecutionArchive saveArchive(Batch batch, List<Pipeline> pipelines, Date startTime, Date endTime, String state) {
+        return executionArchiveRepository.save(new ExecutionArchive(){{
             setBatch(batch);
+            setPipeline(pipelines);
             setStartTime(startTime);
             setEndTime(endTime);
             setState(state);
         }});
     }
 
-    public void save(BatchArchive currentBatchArchive) {
-        batchArchiveRepository.save(currentBatchArchive);
+    public void save(ExecutionArchive currentExecutionArchive) {
+        executionArchiveRepository.save(currentExecutionArchive);
     }
 
-    public List<BatchArchive> findToday() {
+    public List<ExecutionArchive> findToday() {
         Calendar cal = Calendar.getInstance();
         cal.set(Calendar.HOUR_OF_DAY, 0);
         cal.set(Calendar.MINUTE, 0);
@@ -44,14 +45,14 @@ public class ArchiveService {
         cal.set(Calendar.MILLISECOND, 0);
         PageRequest pageRequest = PageRequest.of(0, 1000, Sort.Direction.DESC, "startTime");
         try {
-            return batchArchiveRepository.findInterval(cal.getTimeInMillis(), Calendar.getInstance().getTimeInMillis(), pageRequest);
+            return executionArchiveRepository.findInterval(cal.getTimeInMillis(), Calendar.getInstance().getTimeInMillis(), pageRequest);
         } catch (SearchPhaseExecutionException e) {
             e.printStackTrace();
             return new ArrayList<>();
         }
     }
 
-    public List<BatchArchive> findLastWeek() {
+    public List<ExecutionArchive> findLastWeek() {
         Calendar cal = Calendar.getInstance();
         cal.set(Calendar.HOUR_OF_DAY, 0);
         cal.set(Calendar.MINUTE, 0);
@@ -60,12 +61,20 @@ public class ArchiveService {
         cal.add(Calendar.DATE, -7);
         PageRequest pageRequest = PageRequest.of(0, 1000, Sort.Direction.DESC, "startTime");
         return StreamSupport.stream(
-                batchArchiveRepository.findInterval(cal.getTimeInMillis(), Calendar.getInstance().getTimeInMillis(), pageRequest)
+                executionArchiveRepository.findInterval(cal.getTimeInMillis(), Calendar.getInstance().getTimeInMillis(), pageRequest)
                 .spliterator(), false).collect(Collectors.toList());
 
     }
 
     public void clear() {
-        batchArchiveRepository.deleteAll();
+        executionArchiveRepository.deleteAll();
+    }
+
+    public void initArchive() {
+        clear();
+        save(new ExecutionArchive(){{
+            setState("INIT");
+            setStartTime(new Date());
+        }});
     }
 }

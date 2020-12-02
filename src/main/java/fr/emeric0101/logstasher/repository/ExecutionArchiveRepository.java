@@ -1,14 +1,14 @@
 package fr.emeric0101.logstasher.repository;
 
 
-import fr.emeric0101.logstasher.entity.BatchArchive;
+import fr.emeric0101.logstasher.entity.ExecutionArchive;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.annotations.Query;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 
 import java.util.List;
 
-public interface BatchArchiveRepository extends ElasticsearchRepository<BatchArchive, String> {
+public interface ExecutionArchiveRepository extends ElasticsearchRepository<ExecutionArchive, String> {
 
     @Query("{        \"range\" : { " +
             "            \"startTime\" : { " +
@@ -17,5 +17,5 @@ public interface BatchArchiveRepository extends ElasticsearchRepository<BatchArc
             "            } " +
             "        }}")
 
-    List<BatchArchive> findInterval(long start, long end, PageRequest page);
+    List<ExecutionArchive> findInterval(long start, long end, PageRequest page);
 }

@@ -1,11 +1,9 @@
 package fr.emeric0101.logstasher.service;
 
-import fr.emeric0101.logstasher.configuration.LogstashProperties;
 import fr.emeric0101.logstasher.dto.ExecutionQueue;
-import fr.emeric0101.logstasher.dto.LogstashRunning;
 import fr.emeric0101.logstasher.dto.RestRequest;
 import fr.emeric0101.logstasher.entity.Batch;
-import fr.emeric0101.logstasher.entity.BatchArchive;
+import fr.emeric0101.logstasher.entity.ExecutionArchive;
 import fr.emeric0101.logstasher.repository.BatchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -25,7 +23,7 @@ public class BatchExecutionService {
     ExecutionQueueSerializer executionQueueSerializer;
 
     @Autowired
-    ArchiveService archiveService;
+    ExecutionArchiveService executionArchiveService;
 
     @Autowired
     RestService restService;
@@ -45,7 +43,7 @@ public class BatchExecutionService {
     private Iterator<ExecutionQueue.ExecutionBatch> queueIterator;
     private ExecutionQueue.ExecutionBatch currentBatch;
     private ExecutionQueue currentQueue;
-    private BatchArchive currentBatchArchive;
+    private ExecutionArchive currentExecutionArchive;
 
     final String INSTANCE = "_batch";
 
@@ -61,9 +59,9 @@ public class BatchExecutionService {
             } else {
                 currentBatch.setState("DONE");
             }
-            currentBatchArchive.setEndTime(new Date());
-            currentBatchArchive.setState(currentBatch.getState());
-            archiveService.save(currentBatchArchive);
+            currentExecutionArchive.setEndTime(new Date());
+            currentExecutionArchive.setState(currentBatch.getState());
+            executionArchiveService.save(currentExecutionArchive);
             logstashService.sendState(INSTANCE);
             // next step ?
             if (queueIterator.hasNext()) {
@@ -127,10 +125,10 @@ public class BatchExecutionService {
     public void stopLogstash(boolean continueQueue) {
         logstashService.stop(INSTANCE);
 
-        if (currentBatchArchive != null && currentBatchArchive.getEndTime() == null) {
-            currentBatchArchive.setEndTime(new Date());
-            currentBatchArchive.setState("INTERRUPTED");
-            archiveService.save(currentBatchArchive);
+        if (currentExecutionArchive != null && currentExecutionArchive.getEndTime() == null) {
+            currentExecutionArchive.setEndTime(new Date());
+            currentExecutionArchive.setState("INTERRUPTED");
+            executionArchiveService.save(currentExecutionArchive);
             logstashService.sendState(INSTANCE);
         }
 
@@ -142,7 +140,7 @@ public class BatchExecutionService {
         } else {
             currentQueue = null;
             currentBatch = null;
-            currentBatchArchive = null;
+            currentExecutionArchive = null;
             // trigge queue ended
         }
 
@@ -152,22 +150,22 @@ public class BatchExecutionService {
         // Hook before running
         runHookRequests(currentBatch.getBatch(), false);
         // save archive
-        currentBatchArchive = archiveService.saveArchive(currentBatch.getBatch(), new Date(), null, currentBatch.getState());
+        currentExecutionArchive = executionArchiveService.saveArchive(currentBatch.getBatch(), null, new Date(), null, currentBatch.getState());
         executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "Starting batch");
 
         logstashService.startBatches(INSTANCE, currentBatch,
-                (retval) -> {
-                    if (retval == 0) {
-                        currentBatchArchive.setState("DONE");
+                (retval, successfullyStarted) -> {
+                    if (retval == 0 && successfullyStarted) {
+                        currentExecutionArchive.setState("DONE");
                     } else {
                         if (!currentBatch.getState().equals("INTERRUPTED")) {
-                            currentBatchArchive.setState("ERROR");
+                            currentExecutionArchive.setState("ERROR");
                             mailService.sendSimpleMessage("emeric.baveux.external@airbus.com", "Logstasher : error on batch " + currentBatch.getBatch().getId(),
                                     "The batch " + currentBatch.getBatch().getId() + " got an error\n\n" + currentBatch.getOutput());
                         }
                     }
-                    currentBatchArchive.setEndTime(new Date());
-                    archiveService.save(currentBatchArchive);
+                    currentExecutionArchive.setEndTime(new Date());
+                    executionArchiveService.save(currentExecutionArchive);
                     logstashService.sendState(INSTANCE);
 
                     executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "End with " + retval);
@@ -187,10 +185,10 @@ public class BatchExecutionService {
 
 
     private void changeState(String state) {
-        if (currentBatchArchive != null) {
-            currentBatchArchive.setState(state);
+        if (currentExecutionArchive != null) {
+            currentExecutionArchive.setState(state);
             currentBatch.setState(state);
-            archiveService.save(currentBatchArchive);
+            executionArchiveService.save(currentExecutionArchive);
         }
 
         logstashService.sendState(INSTANCE);
@@ -221,17 +219,12 @@ public class BatchExecutionService {
      */
     public void dogWatch() {
         Date date = new Date();
-        if (this.currentBatch != null && (date.getTime() - this.currentBatchArchive.getStartTime().getTime()) > currentBatch.getBatch().getTimeout() * 60000) {
+        if (this.currentBatch != null && (date.getTime() - this.currentExecutionArchive.getStartTime().getTime()) > currentBatch.getBatch().getTimeout() * 60000) {
             stopLogstash(true);
         }
     }
 
     public void init() {
-        archiveService.clear();
-        archiveService.save(new BatchArchive(){{
-            setState("INIT");
-            setStartTime(new Date());
-        }});
         batchRepository.save(new Batch() {{
             setId("test");
             setActivated(false);
@@ -242,8 +235,8 @@ public class BatchExecutionService {
     }
 
     public void clear() {
-        archiveService.clear();
-        archiveService.save(new BatchArchive(){{
+        executionArchiveService.clear();
+        executionArchiveService.save(new ExecutionArchive(){{
             setState("INIT");
             setStartTime(new Date());
         }});

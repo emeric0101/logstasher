@@ -3,13 +3,17 @@ package fr.emeric0101.logstasher.service;
 import fr.emeric0101.logstasher.configuration.LogstashProperties;
 import fr.emeric0101.logstasher.dto.ExecutionQueue;
 import fr.emeric0101.logstasher.entity.Pipeline;
+import fr.emeric0101.logstasher.exception.LogstashNotFoundException;
+import org.apache.commons.io.FileUtils;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.Semaphore;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 
@@ -28,7 +32,6 @@ public class LogstashInstance {
 
     private String instanceName;
 
-    private boolean starting = false;
 
     List<String> buffer = new ArrayList<String>();
     String startDate;
@@ -36,8 +39,11 @@ public class LogstashInstance {
     ExecutionQueue.ExecutionBatch currentBatch;
     List<Pipeline> currentPipelines;
 
+    // only when Successfully started Logstash API endpoint {:port=>9600}
+    boolean successfullyStarted = false;
+
     public String getDate() {
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-M-yyyy HH-mm-ss");
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd/M/yyyy HH:mm:ss");
         return simpleDateFormat.format(new Date());
     }
 
@@ -48,6 +54,20 @@ public class LogstashInstance {
         this.instanceName = instanceName;
     }
 
+    /**
+     * Remove all data stored by logstash
+     */
+    public void clearData() {
+        File path = new File(logstashProperties.getPath() + (isWindows ? "\\" : "/") + dataPath);
+        if (path.exists()) {
+            try {
+                FileUtils.deleteDirectory(path);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
 
     /**
      * Start logstash
@@ -56,17 +76,25 @@ public class LogstashInstance {
      * @param endCallback
      * @param logAddLines
      */
-    public void start(ExecutionQueue.ExecutionBatch batch, List<Pipeline> pipelines, Consumer<Integer> endCallback, Consumer<String> logAddLines) {
+    public void start(ExecutionQueue.ExecutionBatch batch, List<Pipeline> pipelines, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) throws LogstashNotFoundException {
+        successfullyStarted = false;
+
         currentBatch = batch;
         currentPipelines = pipelines;
         System.out.println("Starting logstash " + instanceName);
         startDate = getDate();
-        starting = true;
         if (logstashInstance != null && logstashInstance.isAlive()) {
             return;
         }
 
         try {
+
+            // control logstash path
+            File logstashBin = new File(logstashProperties.getPath() + File.separator + "bin" + File.separator + "logstash");
+            if (!logstashBin.exists()) {
+                throw new LogstashNotFoundException("Logstash not found at path : " + logstashProperties.getPath());
+            }
+
             List<String> cmds = new ArrayList<String>();
             cmds.addAll(Arrays.asList(log_cmd.replaceAll("%LOGSTASH_PATH%", logstashProperties.getPath()).split(" ")));
             // if batch, run it
@@ -83,6 +111,7 @@ public class LogstashInstance {
             cmds.add(logstashProperties.getPath() + (isWindows ? "\\" : "/") + dataPath);
 
             ProcessBuilder pb = new ProcessBuilder(cmds);
+            pb.redirectErrorStream(true);
             pb.environment().put("LS_HOME", logstashProperties.getPath());
 
 
@@ -93,15 +122,23 @@ public class LogstashInstance {
                         BufferedReader input = new BufferedReader(new InputStreamReader(logstashInstance.getInputStream()));
                         String line = input.readLine();
                         if (line != null) {
+                            // flag that logstash is OK
+                            if (!successfullyStarted && line.contains("Successfully started Logstash API endpoint {:port=>9600}")) {
+                                successfullyStarted = true;
+                            }
+
                             semaphore.acquire();
                             if (currentBatch != null) {
                                 currentBatch.getOutput().add(line);
+                            }
+                            if (buffer.size() > 300) {
+                                // remove first line
+                                buffer.remove(0);
                             }
                             buffer.add(line);
 
                             semaphore.release();
                             logAddLines.accept(line);
-                            starting = false;
                         }
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -110,10 +147,9 @@ public class LogstashInstance {
                     }
 
                 }
-                starting = false;
                 System.out.println("Logstash has end up with code "+ logstashInstance.exitValue());
                 if (endCallback != null) {
-                    endCallback.accept(logstashInstance.exitValue());
+                    endCallback.accept(logstashInstance.exitValue(), successfullyStarted);
                 }
             });
             bufferThread.start();
@@ -174,14 +210,12 @@ public class LogstashInstance {
     }
 
     public String getState() {
-        if (starting) {
-            return "STARTING";
-        }
         if (logstashInstance == null || !logstashInstance.isAlive()){
             return "STOPPED";
-        } else {
+        } else if (successfullyStarted)  {
             return "RUNNING";
         }
+        return "STARTING";
     }
 
     public String getStartDate() {

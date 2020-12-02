@@ -3,13 +3,16 @@ package fr.emeric0101.logstasher.entity;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 
+import java.nio.channels.Pipe;
 import java.util.Date;
+import java.util.List;
 
-@Document(indexName = "logstasher_batch_archive", type = "doc")
-public class BatchArchive {
+@Document(indexName = "logstasher_archive", type = "doc")
+public class ExecutionArchive {
     @Id
     private String id;
     private Batch batch;
+    private List<Pipeline> pipeline;
     private Date startTime;
     private Date endTime;
     private String state;
@@ -52,5 +55,13 @@ public class BatchArchive {
 
     public void setState(String state) {
         this.state = state;
+    }
+
+    public List<Pipeline> getPipeline() {
+        return pipeline;
+    }
+
+    public void setPipeline(List<Pipeline> pipeline) {
+        this.pipeline = pipeline;
     }
 }

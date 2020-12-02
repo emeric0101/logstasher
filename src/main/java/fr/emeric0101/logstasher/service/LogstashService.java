@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -54,11 +55,11 @@ public class LogstashService {
         }
     }
 
-    public void startBatches(String instance, ExecutionQueue.ExecutionBatch currentBatch, Consumer<Integer> endCallback, Consumer<String> logAddLines) {
+    public void startBatches(String instance, ExecutionQueue.ExecutionBatch currentBatch, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) {
         this.getInstance(instance).start(currentBatch, null, endCallback, logAddLines);
     }
 
-    public void startPipeline(String instance, List<Pipeline> pipelines, Consumer<Integer> endCallback, Consumer<String> logAddLines) {
+    public void startPipeline(String instance, List<Pipeline> pipelines, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) {
         this.getInstance(instance).start(null, pipelines,  endCallback, logAddLines);
     }
 
