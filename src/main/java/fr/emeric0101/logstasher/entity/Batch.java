@@ -15,6 +15,13 @@ public class Batch {
     private String content;
     private Integer startHour;
     private Integer startMinute;
+
+    private RecurrenceEnum recurrence = null;
+    // In case of weekly (sunday = 1, ...)
+    private List<Integer> weekDays = null;
+    // in case of monthly
+    private Integer monthDate = null;
+
     private boolean activated;
     private int order;
     private long timeout;
@@ -82,5 +89,29 @@ public class Batch {
 
     public void setEntyRequests(List<RestRequest> entyRequests) {
         this.entyRequests = entyRequests;
+    }
+
+    public RecurrenceEnum getRecurrence() {
+        return recurrence;
+    }
+
+    public void setRecurrence(RecurrenceEnum recurrence) {
+        this.recurrence = recurrence;
+    }
+
+    public List<Integer> getWeekDays() {
+        return weekDays;
+    }
+
+    public void setWeekDays(List<Integer> weekDays) {
+        this.weekDays = weekDays;
+    }
+
+    public Integer getMonthDate() {
+        return monthDate;
+    }
+
+    public void setMonthDate(Integer monthDate) {
+        this.monthDate = monthDate;
     }
 }

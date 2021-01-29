@@ -16,6 +16,27 @@ public interface ExecutionArchiveRepository extends ElasticsearchRepository<Exec
             "                \"lt\" :  ?1 " +
             "            } " +
             "        }}")
+    List<ExecutionArchive> findIntervalPage(long start, long end, PageRequest page);
 
-    List<ExecutionArchive> findInterval(long start, long end, PageRequest page);
+    @Query("{" +
+            "    \"bool\": {" +
+            "      \"must\": [" +
+            "        {" +
+            "          \"range\": {" +
+            "            \"startTime\": {" +
+            "              \"gte\": ?0," +
+            "              \"lt\": ?1" +
+            "            }" +
+            "          }" +
+            "        }," +
+            "        {" +
+            "            \"match\" : { " +
+            "                \"batch.id\" : \"?2\" " +
+            "            } " +
+            "            } " +
+            "      ]" +
+            "    }" +
+            "  }")
+    List<ExecutionArchive> findInterval(long start, long end, String batchId);
+
 }

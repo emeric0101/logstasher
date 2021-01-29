@@ -1,8 +1,5 @@
 package fr.emeric0101.logstasher.service;
 
-import fr.emeric0101.logstasher.dto.ExecutionQueue;
-import fr.emeric0101.logstasher.dto.LogstashRunning;
-import fr.emeric0101.logstasher.entity.Batch;
 import org.apache.commons.io.FileUtils;
 import org.springframework.stereotype.Service;
 

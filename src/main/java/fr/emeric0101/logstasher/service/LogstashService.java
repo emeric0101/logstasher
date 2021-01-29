@@ -1,7 +1,7 @@
 package fr.emeric0101.logstasher.service;
 
 import fr.emeric0101.logstasher.configuration.LogstashProperties;
-import fr.emeric0101.logstasher.dto.ExecutionQueue;
+import fr.emeric0101.logstasher.dto.ExecutionBatch;
 import fr.emeric0101.logstasher.dto.LogstashRunning;
 import fr.emeric0101.logstasher.entity.Pipeline;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,7 +55,7 @@ public class LogstashService {
         }
     }
 
-    public void startBatches(String instance, ExecutionQueue.ExecutionBatch currentBatch, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) {
+    public void startBatches(String instance, ExecutionBatch currentBatch, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) {
         this.getInstance(instance).start(currentBatch, null, endCallback, logAddLines);
     }
 
@@ -94,5 +94,9 @@ public class LogstashService {
 
     public List<LogstashRunning> getRunningAll() {
         return instances.keySet().parallelStream().map(e -> getRunning(e)).collect(Collectors.toList());
+    }
+
+    public boolean isAlive(String instance) {
+        return getInstance(instance).isAlive();
     }
 }

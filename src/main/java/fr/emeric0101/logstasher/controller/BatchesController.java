@@ -53,11 +53,6 @@ public class BatchesController {
         service.start(id);
     }
 
-    @RequestMapping("/restartBatches")
-    @CrossOrigin(origins="*")
-    public void restartBatches() {
-        service.restartBatches();
-    }
 
 
 

@@ -1,7 +1,7 @@
 package fr.emeric0101.logstasher.service;
 
 import fr.emeric0101.logstasher.configuration.LogstashProperties;
-import fr.emeric0101.logstasher.dto.ExecutionQueue;
+import fr.emeric0101.logstasher.dto.ExecutionBatch;
 import fr.emeric0101.logstasher.entity.Pipeline;
 import fr.emeric0101.logstasher.exception.LogstashNotFoundException;
 import org.apache.commons.io.FileUtils;
@@ -36,7 +36,7 @@ public class LogstashInstance {
     List<String> buffer = new ArrayList<String>();
     String startDate;
 
-    ExecutionQueue.ExecutionBatch currentBatch;
+    ExecutionBatch currentBatch;
     List<Pipeline> currentPipelines;
 
     // only when Successfully started Logstash API endpoint {:port=>9600}
@@ -76,7 +76,7 @@ public class LogstashInstance {
      * @param endCallback
      * @param logAddLines
      */
-    public void start(ExecutionQueue.ExecutionBatch batch, List<Pipeline> pipelines, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) throws LogstashNotFoundException {
+    public void start(ExecutionBatch batch, List<Pipeline> pipelines, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) throws LogstashNotFoundException {
         successfullyStarted = false;
 
         currentBatch = batch;
@@ -222,11 +222,15 @@ public class LogstashInstance {
         return startDate;
     }
 
-    public ExecutionQueue.ExecutionBatch getCurrentBatch() {
+    public ExecutionBatch getCurrentBatch() {
         return currentBatch;
     }
 
     public List<Pipeline> getCurrentPipelines() {
         return currentPipelines;
+    }
+
+    public boolean isAlive() {
+        return logstashInstance != null && logstashInstance.isAlive();
     }
 }

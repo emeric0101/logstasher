@@ -1,18 +1,18 @@
 package fr.emeric0101.logstasher.service;
 
-import fr.emeric0101.logstasher.dto.ExecutionQueue;
-import fr.emeric0101.logstasher.entity.ExecutionArchive;
 import fr.emeric0101.logstasher.entity.Batch;
+import fr.emeric0101.logstasher.entity.RecurrenceEnum;
 import fr.emeric0101.logstasher.repository.BatchRepository;
+import fr.emeric0101.logstasher.service.Scheduler.DailyScheduler;
+import fr.emeric0101.logstasher.service.Scheduler.MonthlyScheduler;
+import fr.emeric0101.logstasher.service.Scheduler.SchedulerInterface;
+import fr.emeric0101.logstasher.service.Scheduler.WeeklyScheduler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -29,8 +29,6 @@ public class BatchService {
 
     @Autowired
     ExecutionArchiveService executionArchiveService;
-
-    Date scheduledWorkingSince = null;
 
 
     public List<Batch> findAll() {
@@ -55,53 +53,51 @@ public class BatchService {
         if (!batch.isPresent()) {
             throw new RuntimeException("Batch not found");
         }
-        ExecutionQueue queue = new ExecutionQueue(new ArrayList<Batch>(){{add(batch.get());}}, r -> {});
-        batchExecutionService.startFromQueue(queue);
+        batchExecutionService.startFromQueue(Arrays.asList(batch.get()), false);
     }
 
-    public void restartBatches() {
-        PageRequest page = PageRequest.of(0, 1000, Sort.Direction.ASC, "order");
-        List<Batch> batches = StreamSupport.stream(repository.findAllActive(page).spliterator(), false).collect(Collectors.toList());
+    /**
+     * Create and send queue to logstash by scheduler strategy
+     * @param time
+     */
+    public void startScheduledBatched(Calendar time) {
 
-        ExecutionQueue queue = new ExecutionQueue(batches, r -> {});
-        batchExecutionService.startFromQueue(queue);
+
+        List<Batch> allBatches = findAllActive();
+
+        List<Batch> batchesToBeExecuted = new LinkedList<>();
+
+        for (Batch batch: allBatches) {
+            // strategy ?
+            if (batch.getRecurrence() == null) {
+                // Fix legacy
+                batch.setRecurrence(RecurrenceEnum.Daily);
+                repository.save(batch);
+            }
+            SchedulerInterface stragety;
+            switch (batch.getRecurrence()) {
+                case Daily:
+                    stragety = new DailyScheduler(batch, executionArchiveService);
+                    break;
+                case Weekly:
+                    stragety = new WeeklyScheduler(batch, executionArchiveService);
+                    break;
+                case Monthly:
+                    stragety = new MonthlyScheduler(batch, executionArchiveService);
+                    break;
+                default:
+                    throw new RuntimeException("Unknown recursive param");
+            }
+            boolean toBeExecuted = stragety.isToBeExecuted(time);
+            if (toBeExecuted) {
+                batchesToBeExecuted.add(batch);
+            }
+        }
+
+        batchExecutionService.startFromQueue(batchesToBeExecuted, true);
     }
 
-
-    public void startScheduledBatched(int hour, int minute) {
-        // skip if already working
-
-        if (scheduledWorkingSince != null && (new Date()).getTime() - scheduledWorkingSince.getTime() > 3600*1000) {
-            System.out.println("FATAL ERROR : Timeout on scheduler, this must never happen !!!! Probably unable to shutdown logstash automatically");
-            scheduledWorkingSince = null;
-        }
-
-        if (scheduledWorkingSince != null) {return;}
-        PageRequest page = PageRequest.of(0, 1000, Sort.Direction.ASC, "order");
-        List<Batch> batches = StreamSupport.stream(repository.findAllActive(page).spliterator(), false).collect(Collectors.toList());
-        List<ExecutionArchive> executionArchives = executionArchiveService.findToday().stream().filter(e -> e.getBatch() != null).collect(Collectors.toList());
-
-        // get only batch in the current period
-        if (batches == null) {
-            return;
-        }
-        batches = batches.stream().filter(e -> (e.getStartMinute() != null && e.getStartMinute() != null) && Math.abs((hour*60+minute) - (e.getStartHour()*60+e.getStartMinute())) < 5).collect(Collectors.toList());
-
-        // batches already runs today ?
-        if (executionArchives != null) {
-            batches = batches.stream().filter(e -> executionArchives.stream().noneMatch(a -> a.getBatch().getId().equals(e.getId()))).collect(Collectors.toList());
-        }
-
-        if (batches.isEmpty()) {
-            return;
-        }
-
-        scheduledWorkingSince = new Date();
-
-
-        // ajouter une file d'attente d'exécution
-
-        ExecutionQueue executionQueue = new ExecutionQueue(batches, (r) -> scheduledWorkingSince = null);
-        batchExecutionService.startFromQueue(executionQueue);
+    private List<Batch> findAllActive() {
+        return repository.findAllActive();
     }
 }

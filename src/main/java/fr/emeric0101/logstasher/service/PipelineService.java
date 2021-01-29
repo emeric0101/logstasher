@@ -5,6 +5,8 @@ import fr.emeric0101.logstasher.repository.PipelineRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class PipelineService {
     @Autowired
@@ -28,4 +30,5 @@ public class PipelineService {
         this.generatorService.generatePipelines();
 
     }
+
 }

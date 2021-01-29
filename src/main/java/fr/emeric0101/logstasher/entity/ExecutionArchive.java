@@ -1,9 +1,12 @@
 package fr.emeric0101.logstasher.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
+import org.springframework.data.elasticsearch.annotations.Field;
 
-import java.nio.channels.Pipe;
+import java.time.LocalDateTime;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -13,9 +16,43 @@ public class ExecutionArchive {
     private String id;
     private Batch batch;
     private List<Pipeline> pipeline;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private Date startTime;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private Date endTime;
     private String state;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    private Date expectedStart;
+    private String type;
+
+
+    /**
+     *
+     * @param date
+     * @return
+     */
+    private static Calendar dateToCalendar(Date date) {
+        Calendar obj = Calendar.getInstance();
+        if (date == null) {
+            return null;
+        }
+        obj.setTime(date);
+        return obj;
+    }
+
+    /**
+     *
+     * @param calendar
+     * @return
+     */
+    private static Date calendarToDate(Calendar calendar) {
+        if (calendar == null) {
+            return null;
+        }
+        return calendar.getTime();
+    }
+
+
 
     public String getId() {
         return id;
@@ -33,20 +70,21 @@ public class ExecutionArchive {
         this.batch = batch;
     }
 
-    public Date getStartTime() {
-        return startTime;
+
+    public Calendar getStartTime() {
+        return dateToCalendar(startTime);
     }
 
-    public void setStartTime(Date startTime) {
-        this.startTime = startTime;
+    public void setStartTime(Calendar startTime) {
+        this.startTime = calendarToDate(startTime);
     }
 
-    public Date getEndTime() {
-        return endTime;
+    public Calendar getEndTime() {
+        return dateToCalendar(endTime);
     }
 
-    public void setEndTime(Date endTime) {
-        this.endTime = endTime;
+    public void setEndTime(Calendar endTime) {
+        this.endTime = calendarToDate(endTime);
     }
 
     public String getState() {
@@ -63,5 +101,21 @@ public class ExecutionArchive {
 
     public void setPipeline(List<Pipeline> pipeline) {
         this.pipeline = pipeline;
+    }
+
+    public Calendar getExpectedStart() {
+        return dateToCalendar(expectedStart);
+    }
+
+    public void setExpectedStart(Calendar expectedStart) {
+        this.expectedStart = calendarToDate(expectedStart);
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 }

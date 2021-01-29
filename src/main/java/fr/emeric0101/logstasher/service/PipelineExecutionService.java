@@ -3,11 +3,13 @@ package fr.emeric0101.logstasher.service;
 import fr.emeric0101.logstasher.configuration.LogstashProperties;
 import fr.emeric0101.logstasher.dto.LogstashRunning;
 import fr.emeric0101.logstasher.entity.ExecutionArchive;
+import fr.emeric0101.logstasher.entity.ExecutionArchiveTypeEnum;
 import fr.emeric0101.logstasher.entity.Pipeline;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -49,7 +51,7 @@ public class PipelineExecutionService {
         List<Pipeline> pipelines = StreamSupport.stream(pipelinesIter.spliterator(), true).filter(e -> e.isActivated()).collect(Collectors.toList());
 
         // create archive entry
-        currentExecutionArchive = executionArchiveService.saveArchive(null, pipelines, new Date(), null, "STARTING");
+        currentExecutionArchive = executionArchiveService.saveArchive(null, pipelines, Calendar.getInstance(), null, "STARTING", ExecutionArchiveTypeEnum.MANUAL);
 
 
         // start logstash instance for pipeline
@@ -63,7 +65,7 @@ public class PipelineExecutionService {
                         "The pipeline got an error\n\n");
 
             }
-            currentExecutionArchive.setEndTime(new Date());
+            currentExecutionArchive.setEndTime(Calendar.getInstance());
             executionArchiveService.save(currentExecutionArchive);
             executionQueueSerializer.saveLog(startDate, "Pipelines", "End with " + retval);
             logstashService.sendState(INSTANCE);
