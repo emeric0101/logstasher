@@ -74,6 +74,8 @@ public class PipelineExecutionService {
             // logCallback
             logstashService.sendState(INSTANCE);
             executionQueueSerializer.saveLog(startDate, "Pipelines", newLineLog);
+        }, () -> {
+            logstashService.sendState(INSTANCE);
         });
         logstashService.sendState(INSTANCE);
 

@@ -55,12 +55,12 @@ public class LogstashService {
         }
     }
 
-    public void startBatches(String instance, ExecutionBatch currentBatch, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) {
-        this.getInstance(instance).start(currentBatch, null, endCallback, logAddLines);
+    public void startBatches(String instance, ExecutionBatch currentBatch, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines, Runnable startedCallback) {
+        this.getInstance(instance).start(currentBatch, null, endCallback, logAddLines, startedCallback);
     }
 
-    public void startPipeline(String instance, List<Pipeline> pipelines, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) {
-        this.getInstance(instance).start(null, pipelines,  endCallback, logAddLines);
+    public void startPipeline(String instance, List<Pipeline> pipelines, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines, Runnable startedCallback) {
+        this.getInstance(instance).start(null, pipelines,  endCallback, logAddLines, startedCallback);
     }
 
     public LogstashRunning getRunning(String instance) {

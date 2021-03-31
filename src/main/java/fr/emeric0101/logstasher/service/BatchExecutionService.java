@@ -43,7 +43,6 @@ public class BatchExecutionService {
     String startDate = null;
 
     private ExecutionBatch currentBatch;
-    private ExecutionArchive currentExecutionArchive;
 
     ConcurrentLinkedDeque<ExecutionBatch> queueManager = new ConcurrentLinkedDeque();
 
@@ -64,9 +63,9 @@ public class BatchExecutionService {
             } else {
                 currentBatch.setState("DONE");
             }
-            currentExecutionArchive.setEndTime(Calendar.getInstance());
-            currentExecutionArchive.setState(currentBatch.getState());
-            executionArchiveService.save(currentExecutionArchive);
+            currentBatch.getArchive().setEndTime(Calendar.getInstance());
+            currentBatch.getArchive().setState(currentBatch.getState());
+            executionArchiveService.save(currentBatch.getArchive());
             logstashService.sendState(INSTANCE);
 
             nextBatchFromQueue();
@@ -106,7 +105,8 @@ public class BatchExecutionService {
         startDate = executionQueueSerializer.getDate();
         logstashService.clearBuffer(INSTANCE);
         // Add to the current queue or replace the empty queue
-        queueManager.addAll(queue.stream().map(e -> new ExecutionBatch(e, automaticallyStarted)).collect(Collectors.toList()));
+        queueManager.addAll(queue.stream().map(e -> new ExecutionBatch(e, automaticallyStarted,
+                executionArchiveService.saveArchive(e, null, Calendar.getInstance(), null,  "PLANIFIED", automaticallyStarted ? ExecutionArchiveTypeEnum.AUTO : ExecutionArchiveTypeEnum.MANUAL))).collect(Collectors.toList()));
         // start batch if not running
         if (!isRunning()) {
             nextBatchFromQueue();
@@ -132,10 +132,10 @@ public class BatchExecutionService {
 
         logstashService.stop(INSTANCE);
 
-        if (currentExecutionArchive != null && currentExecutionArchive.getEndTime() == null) {
-            currentExecutionArchive.setEndTime(Calendar.getInstance());
-            currentExecutionArchive.setState("INTERRUPTED");
-            executionArchiveService.save(currentExecutionArchive);
+        if (currentBatch.getArchive() != null && currentBatch.getArchive().getEndTime() == null) {
+            currentBatch.getArchive().setEndTime(Calendar.getInstance());
+            currentBatch.getArchive().setState("INTERRUPTED");
+            executionArchiveService.save(currentBatch.getArchive());
             logstashService.sendState(INSTANCE);
         }
 
@@ -153,23 +153,25 @@ public class BatchExecutionService {
         }
         // Hook before running
         runHookRequests(currentBatch.getBatch(), false);
-        // save archive
-        currentExecutionArchive = executionArchiveService.saveArchive(currentBatch.getBatch(), null, Calendar.getInstance(), null, currentBatch.getState(), currentBatch.isAutomaticallyStarted() ? ExecutionArchiveTypeEnum.AUTO : ExecutionArchiveTypeEnum.MANUAL);
+
         executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "Starting batch");
+
+        logstashService.sendState(INSTANCE);
+
 
         logstashService.startBatches(INSTANCE, currentBatch,
                 (retval, successfullyStarted) -> {
                     if (retval == 0 && successfullyStarted) {
-                        currentExecutionArchive.setState("DONE");
+                        currentBatch.getArchive().setState("DONE");
                     } else {
                         if (!currentBatch.getState().equals("INTERRUPTED")) {
-                            currentExecutionArchive.setState("ERROR");
+                            currentBatch.getArchive().setState("ERROR");
                             mailService.sendSimpleMessage("emeric.baveux.external@airbus.com", "Logstasher : error on batch " + currentBatch.getBatch().getId(),
                                     "The batch " + currentBatch.getBatch().getId() + " got an error\n\n" + currentBatch.getOutput());
                         }
                     }
-                    currentExecutionArchive.setEndTime(Calendar.getInstance());
-                    executionArchiveService.save(currentExecutionArchive);
+                    currentBatch.getArchive().setEndTime(Calendar.getInstance());
+                    executionArchiveService.save(currentBatch.getArchive());
                     logstashService.sendState(INSTANCE);
 
                     executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "End with " + retval);
@@ -182,16 +184,18 @@ public class BatchExecutionService {
                     changeState("RUNNING");
                     executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), newLineLog);
 
+                }, () -> {
+                    logstashService.sendState(INSTANCE);
                 });
 
     }
 
 
     private void changeState(String state) {
-        if (currentExecutionArchive != null) {
-            currentExecutionArchive.setState(state);
+        if (currentBatch != null && currentBatch.getArchive() != null) {
+            currentBatch.getArchive().setState(state);
             currentBatch.setState(state);
-            executionArchiveService.save(currentExecutionArchive);
+            executionArchiveService.save(currentBatch.getArchive());
         }
 
         logstashService.sendState(INSTANCE);
@@ -221,8 +225,8 @@ public class BatchExecutionService {
      * Check that no batch is stucked in logstash (timeout in minute)
      */
     public void dogWatch() {
-        if (this.currentBatch != null && this.currentExecutionArchive != null &&
-                (Calendar.getInstance().getTimeInMillis() - this.currentExecutionArchive.getStartTime().getTimeInMillis())
+        if (this.currentBatch != null && this.currentBatch.getArchive() != null &&
+                (Calendar.getInstance().getTimeInMillis() - this.currentBatch.getArchive().getStartTime().getTimeInMillis())
                         > currentBatch.getBatch().getTimeout() * 60000) {
             stopLogstash(true);
         }

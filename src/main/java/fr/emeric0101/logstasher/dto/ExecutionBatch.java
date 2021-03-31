@@ -1,6 +1,7 @@
 package fr.emeric0101.logstasher.dto;
 
 import fr.emeric0101.logstasher.entity.Batch;
+import fr.emeric0101.logstasher.entity.ExecutionArchive;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -14,12 +15,14 @@ public class ExecutionBatch {
     private Batch batch;
     private String state = "IDLE";
     private boolean automaticallyStarted = false;
+    private ExecutionArchive archive;
     private List<String> output = new ArrayList<>();
 
 
-    public ExecutionBatch(Batch batch, boolean automaticallyStarted) {
+    public ExecutionBatch(Batch batch, boolean automaticallyStarted, ExecutionArchive archive) {
         this.automaticallyStarted = automaticallyStarted;
         this.batch = batch;
+        this.archive = archive;
     }
 
     public Batch getBatch() {
@@ -48,5 +51,13 @@ public class ExecutionBatch {
 
     public void setAutomaticallyStarted(boolean automaticallyStarted) {
         this.automaticallyStarted = automaticallyStarted;
+    }
+
+    public ExecutionArchive getArchive() {
+        return archive;
+    }
+
+    public void setArchive(ExecutionArchive archive) {
+        this.archive = archive;
     }
 }

@@ -76,7 +76,7 @@ public class LogstashInstance {
      * @param endCallback
      * @param logAddLines
      */
-    public void start(ExecutionBatch batch, List<Pipeline> pipelines, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines) throws LogstashNotFoundException {
+    public void start(ExecutionBatch batch, List<Pipeline> pipelines, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines, Runnable startedCallback) throws LogstashNotFoundException {
         successfullyStarted = false;
 
         currentBatch = batch;
@@ -88,7 +88,6 @@ public class LogstashInstance {
         }
 
         try {
-
             // control logstash path
             File logstashBin = new File(logstashProperties.getPath() + File.separator + "bin" + File.separator + "logstash");
             if (!logstashBin.exists()) {
@@ -153,6 +152,8 @@ public class LogstashInstance {
                 }
             });
             bufferThread.start();
+            startedCallback.run();
+
             // Start the process buffer
         } catch (IOException e) {
             e.printStackTrace();
@@ -233,4 +234,5 @@ public class LogstashInstance {
     public boolean isAlive() {
         return logstashInstance != null && logstashInstance.isAlive();
     }
+
 }
