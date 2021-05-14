@@ -1,16 +1,13 @@
 package fr.emeric0101.logstasher.service;
 
-import fr.emeric0101.logstasher.configuration.LogstashProperties;
-import fr.emeric0101.logstasher.dto.LogstashRunning;
 import fr.emeric0101.logstasher.entity.ExecutionArchive;
 import fr.emeric0101.logstasher.entity.ExecutionArchiveTypeEnum;
+import fr.emeric0101.logstasher.entity.ExecutorEnum;
 import fr.emeric0101.logstasher.entity.Pipeline;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -19,7 +16,7 @@ import java.util.stream.StreamSupport;
 @Service
 public class PipelineExecutionService {
     @Autowired
-    LogstashService logstashService;
+    ExecutionService executionService;
 
     @Autowired
     PipelineService pipelineService;
@@ -35,14 +32,13 @@ public class PipelineExecutionService {
 
 
 
-    final String INSTANCE = "_pipeline";
+    final ExecutorEnum executor = ExecutorEnum.LOGSTASH_PIPELINE;
 
-    String startDate = null;
     private ExecutionArchive currentExecutionArchive;
 
 
     public void restart() {
-        logstashService.stop(INSTANCE);
+        executionService.stop(executor);
 
 
 
@@ -55,8 +51,8 @@ public class PipelineExecutionService {
 
 
         // start logstash instance for pipeline
-        logstashService.startPipeline(INSTANCE, pipelines, (retval, successfullyStarted) -> {
-            logstashService.sendState(INSTANCE);
+        executionService.startPipeline(pipelines, (retval, successfullyStarted) -> {
+            executionService.sendState(executor);
             if (retval == 0 && successfullyStarted) {
                 currentExecutionArchive.setState("DONE");
             } else {
@@ -67,24 +63,24 @@ public class PipelineExecutionService {
             }
             currentExecutionArchive.setEndTime(Calendar.getInstance());
             executionArchiveService.save(currentExecutionArchive);
-            executionQueueSerializer.saveLog(startDate, "Pipelines", "End with " + retval);
-            logstashService.sendState(INSTANCE);
+            executionQueueSerializer.saveLog(executionService.getInstance(ExecutorEnum.LOGSTASH_PIPELINE).getStartDate(), "Pipelines", "End with " + retval);
+            executionService.sendState(executor);
 
         }, (newLineLog) -> {
             // logCallback
-            logstashService.sendState(INSTANCE);
-            executionQueueSerializer.saveLog(startDate, "Pipelines", newLineLog);
+            executionService.sendState(executor);
+            executionQueueSerializer.saveLog(executionService.getInstance(ExecutorEnum.LOGSTASH_PIPELINE).getStartDate(), "Pipelines", newLineLog);
         }, () -> {
-            logstashService.sendState(INSTANCE);
+            executionService.sendState(executor);
         });
-        logstashService.sendState(INSTANCE);
+        executionService.sendState(executor);
 
     }
 
 
 
     public void stop() {
-        logstashService.stop(INSTANCE);
-        logstashService.clearBuffer(INSTANCE);
+        executionService.stop(executor);
+        executionService.clearBuffer(executor);
     }
 }

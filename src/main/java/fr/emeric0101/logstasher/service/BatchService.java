@@ -1,12 +1,14 @@
 package fr.emeric0101.logstasher.service;
 
 import fr.emeric0101.logstasher.entity.Batch;
+import fr.emeric0101.logstasher.entity.ExecutorEnum;
 import fr.emeric0101.logstasher.entity.RecurrenceEnum;
 import fr.emeric0101.logstasher.repository.BatchRepository;
 import fr.emeric0101.logstasher.service.Scheduler.DailyScheduler;
 import fr.emeric0101.logstasher.service.Scheduler.MonthlyScheduler;
 import fr.emeric0101.logstasher.service.Scheduler.SchedulerInterface;
 import fr.emeric0101.logstasher.service.Scheduler.WeeklyScheduler;
+import fr.emeric0101.logstasher.service.batch.BatchExecutionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -53,7 +55,8 @@ public class BatchService {
         if (!batch.isPresent()) {
             throw new RuntimeException("Batch not found");
         }
-        batchExecutionService.startFromQueue(Arrays.asList(batch.get()), false);
+        // Which type of batch (talend, logstash ?)
+        batchExecutionService.startFromQueue(batch.get().getExecutor(), Arrays.asList(batch.get()), false);
     }
 
     /**
@@ -93,8 +96,12 @@ public class BatchService {
                 batchesToBeExecuted.add(batch);
             }
         }
-
-        batchExecutionService.startFromQueue(batchesToBeExecuted, true);
+        // group by executor
+        Map<ExecutorEnum, List<Batch>> batchesGroupedByExecutor = batchesToBeExecuted.stream().collect(Collectors.groupingBy(b -> b.getExecutor()));
+        // start all executors
+        batchesGroupedByExecutor.entrySet().forEach(key -> {
+            batchExecutionService.startFromQueue(key.getKey(), key.getValue(), true);
+        });
     }
 
     private List<Batch> findAllActive() {

@@ -20,7 +20,8 @@ public class ExecutionQueueSerializer {
     }
 
     public void saveLog(String date, String id, String data) {
-        File pipelineFile = new File("log/" + date + "/" + id + ".log");
+        // truncate date to avoir minutes and seconds
+        File pipelineFile = new File("log/" + date.substring(0, 12) + "/" + id + ".log");
         if (!pipelineFile.exists()) {
             String buffer = "Logstasher - (Emeric BAVEUX)";
             buffer += "\n";
