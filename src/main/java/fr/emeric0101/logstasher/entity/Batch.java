@@ -5,7 +5,6 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 
-import java.util.Date;
 import java.util.List;
 
 @Document(indexName = "logstasher_batch", type = "doc")
@@ -30,7 +29,6 @@ public class Batch {
     private List<RestRequest> entyRequests;
 
     private ExecutorEnum executor = ExecutorEnum.LOGSTASH_BATCH;
-    private String talendPowershellName;
 
     public ExecutorEnum getExecutor() {
         // retro compatibility

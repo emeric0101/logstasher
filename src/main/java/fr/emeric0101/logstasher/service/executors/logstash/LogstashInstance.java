@@ -3,17 +3,13 @@ package fr.emeric0101.logstasher.service.executors.logstash;
 import fr.emeric0101.logstasher.dto.ExecutionBatch;
 import fr.emeric0101.logstasher.entity.Pipeline;
 import fr.emeric0101.logstasher.exception.LogstashNotFoundException;
-import fr.emeric0101.logstasher.service.executors.BufferThreadManager;
-import fr.emeric0101.logstasher.service.executors.ExecutorAbstract;
-import fr.emeric0101.logstasher.service.executors.ExecutorStateEnum;
-import fr.emeric0101.logstasher.service.executors.ProcessHelper;
+import fr.emeric0101.logstasher.service.GeneratorService;
+import fr.emeric0101.logstasher.service.executors.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -33,6 +29,8 @@ public class LogstashInstance extends ExecutorAbstract {
 
     private String instanceName;
 
+    private GeneratorService generatorService;
+
 
 
     List<Pipeline> currentPipelines;
@@ -41,9 +39,10 @@ public class LogstashInstance extends ExecutorAbstract {
     boolean successfullyStarted = false;
 
 
-    public LogstashInstance(String path, String instanceName) {
+    public LogstashInstance(String path, String instanceName, GeneratorService generatorService) {
         super();
         this.path = path;
+        this.generatorService = generatorService;
         dataPath = "data_logstasher-" + instanceName;
         this.instanceName = instanceName;
     }
@@ -84,37 +83,49 @@ public class LogstashInstance extends ExecutorAbstract {
 
         try {
             // control logstash path
-            File logstashBin = new File(this.path + File.separator + "bin" + File.separator + "logstash");
+            File logstashBin = new File(this.path + File.separator + "bin" + File.separator + "logstash" + (isWindows ? ".bat" : ""));
             if (!logstashBin.exists()) {
                 throw new LogstashNotFoundException("Logstash not found at path : " + this.path);
             }
 
-            List<String> cmds = new ArrayList<String>();
-            cmds.addAll(Arrays.asList(log_cmd.replaceAll("%LOGSTASH_PATH%", this.path).split(" ")));
+
+            List<String> execArgs = new LinkedList<>();
             // if batch, run it
             if (getCurrentBatch() != null) {
+                // generate batch file
+                String batchPath = generatorService.generateBatch(batch.getBatch());
                 // archive execution batch state
-                cmds.addAll(new ArrayList<String>() {{
-                    add("-e");
-                    add("\"" + getCurrentBatch().getBatch().getContent()
-                            .replace("\"", "\\\"").replace("\t", " ")
-                            + "\"");
+                execArgs.addAll(new ArrayList<String>() {{
+                    add("-f");
+                    add(batchPath);
                 }});
             }
-            cmds.add("--path.data");
-            cmds.add(this.path + (isWindows ? "\\" : "/") + dataPath);
+            execArgs.add("--path.data");
+            execArgs.add(this.path + (isWindows ? "\\" : "/") + dataPath);
+
+            ScriptParserAbstract batParser = new LogstashBatParser(this.path, execArgs);
+
+            List<String> cmds = batParser.parse(logstashBin);
 
             ProcessBuilder pb = new ProcessBuilder(cmds);
             pb.redirectErrorStream(true);
             pb.environment().put("LS_HOME", this.path);
 
-            log.debug(cmds.stream().collect(Collectors.joining(" ")));
+            log.info(cmds.stream().collect(Collectors.joining(" ")));
 
             logstashProcess = pb.start();
             bufferThread = new BufferThreadManager(logstashProcess, (returnCode) -> {
-                // On exit process
-                endCallback.accept(returnCode, successfullyStarted);
-                bufferThread.stop();
+                if (getBuffer().stream().anyMatch(e -> e != null && (e.contains("No configuration found in the configured sources.") || e.contains("LogStash::ConfigurationError")))) {
+                    // error in LOG
+                    // On exit process
+                    endCallback.accept(-1, successfullyStarted);
+                    bufferThread.stop();
+                } else {
+                    // On exit process
+                    endCallback.accept(returnCode, successfullyStarted);
+                    bufferThread.stop();
+                }
+
 
             }, (line) -> {
                 bufferWrite(line);

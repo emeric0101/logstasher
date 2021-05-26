@@ -5,16 +5,15 @@ import fr.emeric0101.logstasher.entity.Batch;
 import fr.emeric0101.logstasher.entity.ExecutionArchiveTypeEnum;
 import fr.emeric0101.logstasher.entity.Pipeline;
 import fr.emeric0101.logstasher.repository.ExecutionArchiveRepository;
+import org.apache.commons.io.FileUtils;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
+import java.io.*;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -108,5 +107,46 @@ public class ExecutionArchiveService {
             setState("INIT");
             setStartTime(Calendar.getInstance());
         }});
+    }
+
+    /**
+     *
+     * Fetch Log data from a archive
+     * @param executionArchiveId
+     * @return
+     */
+    public List<String> getLog(String executionArchiveId) {
+        Optional<ExecutionArchive> archive = executionArchiveRepository.findById(executionArchiveId);
+        if (!archive.isPresent()) {
+            return Arrays.asList("NOT_FOUND");
+        }
+        String path = archive.get().getLogPath();
+        if (path == null) {
+            return Arrays.asList("NOT_FOUND");
+        }
+        File logFile = new File(path);
+        InputStream inputStream = null;
+        try {
+            inputStream = (new FileInputStream(logFile));
+
+            List<String> resultStringBuilder = new LinkedList();
+            try (BufferedReader br
+                         = new BufferedReader(new InputStreamReader(inputStream))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    resultStringBuilder.add(line);
+                }
+
+                return resultStringBuilder;
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                return Arrays.asList("READ_ERROR");
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            return Arrays.asList("READ_ERROR");
+        }
+
     }
 }

@@ -24,6 +24,7 @@ public class ExecutionArchive {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
     private Date expectedStart;
     private String type;
+    private String logPath;
 
 
     /**
@@ -117,5 +118,13 @@ public class ExecutionArchive {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getLogPath() {
+        return logPath;
+    }
+
+    public void setLogPath(String logPath) {
+        this.logPath = logPath;
     }
 }

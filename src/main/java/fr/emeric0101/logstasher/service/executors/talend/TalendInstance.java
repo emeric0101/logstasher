@@ -36,9 +36,6 @@ public class TalendInstance extends ExecutorAbstract {
         if (pipelines != null && !pipelines.isEmpty()) {
             throw new RuntimeException("Pipelines are not supported by Talend yet");
         }
-        if (batch.getBatch().getTalendPowershellName() == null || batch.getBatch().getTalendPowershellName().isEmpty()) {
-            throw new RuntimeException("Talend jar name not provided");
-        }
         initialize(batch, logAddLines);
 
 
@@ -51,13 +48,17 @@ public class TalendInstance extends ExecutorAbstract {
             // controls talend jar path
             // control logstash path
             String path = batch.getBatch().getContent();
-            File talendBat = new File(path + File.separator + batch.getBatch().getTalendPowershellName());
+            // get the last directory in the path
+            File directory = new File(path);
+            String directoryName = directory.getName();
+
+            File talendBat = new File(path + File.separator + directoryName + "_run.ps1");
             if (!talendBat.exists()) {
-                throw new LogstashNotFoundException("Talend not found at path : " + path + File.separator + batch.getBatch().getTalendPowershellName());
+                throw new LogstashNotFoundException(talendBat.getAbsolutePath());
             }
             // parse the Bat and extract the command lines to start talend
-            TalendBatParser talendBatParser = new TalendBatParser(talendBat);
-                List<String> cmds = talendBatParser.getCommandsFromBat();
+            TalendPowerShellParser talendPowerShellParser = new TalendPowerShellParser();
+                List<String> cmds = talendPowerShellParser.parse(talendBat);
 
             ProcessBuilder pb = new ProcessBuilder(cmds);
             log.debug(cmds.stream().collect(Collectors.joining(" ")));

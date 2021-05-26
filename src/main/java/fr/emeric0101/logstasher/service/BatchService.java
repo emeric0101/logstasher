@@ -40,13 +40,11 @@ public class BatchService {
 
     public void save(Batch p) {
         this.repository.save(p);
-        this.generatorService.generateBatches();
 
     }
 
     public void delete(String id) {
         this.repository.deleteById(id);
-        this.generatorService.generateBatches();
 
     }
 

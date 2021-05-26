@@ -19,9 +19,17 @@ public class ExecutionQueueSerializer {
         return simpleDateFormat.format(new Date());
     }
 
-    public void saveLog(String date, String id, String data) {
+    /**
+     * Return path of the log file
+     * @param date
+     * @param id
+     * @param data
+     * @return
+     */
+    public String saveLog(String date, String id, String data) {
+        String path = "log/" + date.substring(0, 12) + "/" + id + ".log";
         // truncate date to avoir minutes and seconds
-        File pipelineFile = new File("log/" + date.substring(0, 12) + "/" + id + ".log");
+        File pipelineFile = new File(path);
         if (!pipelineFile.exists()) {
             String buffer = "Logstasher - (Emeric BAVEUX)";
             buffer += "\n";
@@ -38,16 +46,13 @@ public class ExecutionQueueSerializer {
                 e.printStackTrace();
             }
         } else {
-            FileWriter fr = null;
-            try {
-                fr = new FileWriter(pipelineFile, true);
+            try (FileWriter fr = new FileWriter(pipelineFile, true)){
                 fr.write(data + "\n");
-                fr.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-
+        return path;
 
     }
 }

@@ -1,21 +1,18 @@
 package fr.emeric0101.logstasher.service.executors.talend;
 
-import org.apache.commons.io.FileUtils;
+import fr.emeric0101.logstasher.service.executors.ScriptParserAbstract;
 
 import java.io.*;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-public class TalendBatParser {
-    File file;
-    public TalendBatParser(File file) {
-        this.file = file;
-    }
+public class TalendPowerShellParser extends ScriptParserAbstract {
 
-    public List<String> getCommandsFromBat() throws IOException {
+    @Override
+    public List<String> parse(File file) throws IOException {
+        super.parse(file);
         // get all content
-        List<String> lines = readFromInputStream(new FileInputStream(file));
+        List<String> lines = super.parse(file);
         // find the command line
         String commandLine = lines.stream().filter(e -> e.contains("java")).findFirst().orElseThrow(() -> new RuntimeException("Unable to found java command in bat file"));
         commandLine = commandLine.replace("%*", "");
@@ -30,16 +27,4 @@ public class TalendBatParser {
         return result;
     }
 
-    private List<String> readFromInputStream(InputStream inputStream)
-            throws IOException {
-        List<String> resultStringBuilder = new LinkedList();
-        try (BufferedReader br
-                     = new BufferedReader(new InputStreamReader(inputStream))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                resultStringBuilder.add(line);
-            }
-        }
-        return resultStringBuilder;
-    }
 }

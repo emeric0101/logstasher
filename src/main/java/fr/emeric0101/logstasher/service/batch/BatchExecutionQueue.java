@@ -160,10 +160,13 @@ public class BatchExecutionQueue {
                         }
                     }
                     currentBatch.getArchive().setEndTime(Calendar.getInstance());
-                    executionArchiveService.save(currentBatch.getArchive());
                     executionService.sendState(executor);
 
-                    executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "End with " + retval);
+                    String logPath = executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "End with " + retval);
+                    currentBatch.getArchive().setLogPath(logPath);
+                    executionArchiveService.save(currentBatch.getArchive());
+
+
                     // hook after running
                     runHookRequests(currentBatch.getBatch(), true);
                     processEnded(retval);
