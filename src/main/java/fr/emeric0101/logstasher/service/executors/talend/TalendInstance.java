@@ -61,7 +61,7 @@ public class TalendInstance extends ExecutorAbstract {
                 List<String> cmds = talendPowerShellParser.parse(talendBat);
 
             ProcessBuilder pb = new ProcessBuilder(cmds);
-            log.debug(cmds.stream().collect(Collectors.joining(" ")));
+            log.info(cmds.stream().collect(Collectors.joining(" ")));
             pb.redirectErrorStream(true);
 
             // set current working dir

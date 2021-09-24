@@ -16,7 +16,6 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 
 public class BatchExecutionQueue {
-    String startDate = null;
 
     private ExecutionBatch currentBatch;
 
@@ -91,7 +90,6 @@ public class BatchExecutionQueue {
      * @param queue
      */
     public void startFromQueue(List<Batch> queue, boolean automaticallyStarted) {
-        startDate = executionQueueSerializer.getDate();
         executionService.clearBuffer(executor);
         // Add to the current queue or replace the empty queue
         queueManager.addAll(queue.stream().map(e -> new ExecutionBatch(e, automaticallyStarted,
@@ -111,6 +109,7 @@ public class BatchExecutionQueue {
         }
         if (!queueManager.isEmpty()) {
             currentBatch = queueManager.poll();
+
             startBatch(currentBatch);
         } else {
             currentBatch = null;
@@ -142,8 +141,9 @@ public class BatchExecutionQueue {
         }
         // Hook before running
         runHookRequests(currentBatch.getBatch(), false);
-
-        executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "Starting batch");
+        // set start event
+        currentBatch.getArchive().setStartTime(Calendar.getInstance());
+        executionQueueSerializer.saveLog(currentBatch.getBatch().getId(), "Starting batch");
 
         executionService.sendState(executor);
 
@@ -162,7 +162,7 @@ public class BatchExecutionQueue {
                     currentBatch.getArchive().setEndTime(Calendar.getInstance());
                     executionService.sendState(executor);
 
-                    String logPath = executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "End with " + retval);
+                    String logPath = executionQueueSerializer.saveLog(currentBatch.getBatch().getId(), "End with " + retval);
                     currentBatch.getArchive().setLogPath(logPath);
                     executionArchiveService.save(currentBatch.getArchive());
 
@@ -174,7 +174,7 @@ public class BatchExecutionQueue {
                 },
                 (newLineLog) -> {
                     changeState("RUNNING");
-                    executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), newLineLog);
+                    executionQueueSerializer.saveLog(currentBatch.getBatch().getId(), newLineLog);
 
                 }, () -> {
                     executionService.sendState(executor);
@@ -206,7 +206,7 @@ public class BatchExecutionQueue {
         for (RestRequest restRequest : batch.getEntyRequests().stream().filter(e -> e.getType().equals(after ? "AFTER" : "BEFORE")).collect(Collectors.toList())) {
             try {
                 String result = restService.sendRequest(restRequest);
-                executionQueueSerializer.saveLog(startDate, currentBatch.getBatch().getId(), "HOOK REQUEST " + restRequest.getUrl() + "\n\tResult : " + result);
+                executionQueueSerializer.saveLog(currentBatch.getBatch().getId(), "HOOK REQUEST " + restRequest.getUrl() + "\n\tResult : " + result);
             } catch (Exception e) {
                 e.printStackTrace();
             }

@@ -22,8 +22,9 @@ public class TalendPowerShellParser extends ScriptParserAbstract {
         commandLine = commandLine.replace("java", "");
         List<String> result = new LinkedList<>();
         result.add("powershell.exe");
-        result.add("java");
-        result.add("" + commandLine + "");
+        result.add(file.getAbsolutePath());
+       // result.add("java");
+       // result.add("" + commandLine + "");
         return result;
     }
 

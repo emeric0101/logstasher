@@ -21,12 +21,12 @@ public class ExecutionQueueSerializer {
 
     /**
      * Return path of the log file
-     * @param date
      * @param id
      * @param data
      * @return
      */
-    public String saveLog(String date, String id, String data) {
+    public String saveLog(String id, String data) {
+        String date = getDate();
         String path = "log/" + date.substring(0, 12) + "/" + id + ".log";
         // truncate date to avoir minutes and seconds
         File pipelineFile = new File(path);

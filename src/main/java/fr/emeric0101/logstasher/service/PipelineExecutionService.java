@@ -62,7 +62,7 @@ public class PipelineExecutionService {
 
             }
             currentExecutionArchive.setEndTime(Calendar.getInstance());
-            String logPath = executionQueueSerializer.saveLog(executionService.getInstance(ExecutorEnum.LOGSTASH_PIPELINE).getStartDate(), "Pipelines", "End with " + retval);
+            String logPath = executionQueueSerializer.saveLog("Pipelines", "End with " + retval);
             currentExecutionArchive.setLogPath(logPath);
             executionArchiveService.save(currentExecutionArchive);
 
@@ -71,7 +71,7 @@ public class PipelineExecutionService {
         }, (newLineLog) -> {
             // logCallback
             executionService.sendState(executor);
-            executionQueueSerializer.saveLog(executionService.getInstance(ExecutorEnum.LOGSTASH_PIPELINE).getStartDate(), "Pipelines", newLineLog);
+            executionQueueSerializer.saveLog( "Pipelines", newLineLog);
         }, () -> {
             executionService.sendState(executor);
         });

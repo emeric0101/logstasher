@@ -5,6 +5,7 @@ import fr.emeric0101.logstasher.entity.ExecutorEnum;
 import fr.emeric0101.logstasher.service.GeneratorService;
 import fr.emeric0101.logstasher.service.executors.logstash.LogstashInstance;
 import fr.emeric0101.logstasher.service.executors.talend.TalendInstance;
+import fr.emeric0101.logstasher.service.executors.test.TestInstance;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,7 +26,9 @@ public class ExecutorFactory {
             case LOGSTASH_PIPELINE:
                 return new LogstashInstance(logstashProperties.getPath(), "pipeline", generatorService);
             case TALEND:
-                    return new TalendInstance();
+                return new TalendInstance();
+            case TEST:
+                return new TestInstance();
             default:
                 throw new RuntimeException("Unknown executor");
         }
