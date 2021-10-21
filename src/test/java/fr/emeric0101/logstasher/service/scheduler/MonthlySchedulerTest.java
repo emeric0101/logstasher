@@ -3,14 +3,12 @@ package fr.emeric0101.logstasher.service.scheduler;
 import fr.emeric0101.logstasher.entity.Batch;
 import fr.emeric0101.logstasher.service.Scheduler.MonthlyScheduler;
 import fr.emeric0101.logstasher.service.Scheduler.SchedulerInterface;
-import fr.emeric0101.logstasher.service.Scheduler.WeeklyScheduler;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.Calendar;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MonthlySchedulerTest extends SchedulerTestAbstract {
 

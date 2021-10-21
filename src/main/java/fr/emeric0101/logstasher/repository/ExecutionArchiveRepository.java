@@ -6,17 +6,18 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.annotations.Query;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 
+import java.util.Date;
 import java.util.List;
 
 public interface ExecutionArchiveRepository extends ElasticsearchRepository<ExecutionArchive, String> {
 
     @Query("{        \"range\" : { " +
             "            \"startTime\" : { " +
-            "                \"gte\" : ?0, " +
-            "                \"lt\" :  ?1 " +
+            "                \"gte\" : \"?0\", " +
+            "                \"lt\" :  \"?1\" " +
             "            } " +
             "        }}")
-    List<ExecutionArchive> findIntervalPage(long start, long end, PageRequest page);
+    List<ExecutionArchive> findIntervalPage(String start, String end, PageRequest page);
 
     @Query("{" +
             "    \"bool\": {" +
@@ -24,8 +25,8 @@ public interface ExecutionArchiveRepository extends ElasticsearchRepository<Exec
             "        {" +
             "          \"range\": {" +
             "            \"startTime\": {" +
-            "              \"gte\": ?0," +
-            "              \"lt\": ?1" +
+            "              \"gte\": \"?0\"," +
+            "              \"lt\": \"?1\"" +
             "            }" +
             "          }" +
             "        }," +
@@ -37,6 +38,6 @@ public interface ExecutionArchiveRepository extends ElasticsearchRepository<Exec
             "      ]" +
             "    }" +
             "  }")
-    List<ExecutionArchive> findInterval(long start, long end, String batchId);
+    List<ExecutionArchive> findInterval(String start, String end, String batchId);
 
 }

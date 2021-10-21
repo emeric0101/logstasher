@@ -69,13 +69,13 @@ public class BatchExecutionService {
      * Init batch repository with test data
      */
     public void init() {
-        batchRepository.save(new Batch() {{
-            setId("test");
-            setActivated(false);
-            setContent("input {} output {}");
-            setOrder(0);
-            setTimeout(60);
-        }});
+        var batch = new Batch();
+        batch.setId("test");
+        batch.setActivated(false);
+        batch.setContent("input {} output {}");
+        batch.setOrder(0);
+        batch.setTimeout(60);
+        batchRepository.save(batch);
     }
 
     /**

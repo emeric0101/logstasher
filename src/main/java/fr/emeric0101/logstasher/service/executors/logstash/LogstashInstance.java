@@ -70,6 +70,11 @@ public class LogstashInstance extends ExecutorAbstract {
      * @param logAddLines
      */
     public void start(ExecutionBatch batch, List<Pipeline> pipelines, BiConsumer<Integer, Boolean> endCallback, Consumer<String> logAddLines, Runnable startedCallback) throws LogstashNotFoundException {
+        if (bufferThread != null && bufferThread.isRunning()) {
+            bufferThread.stop();
+            log.warn("The bufferThread was not stopped automatically, strange...");
+        }
+
         successfullyStarted = false;
 
         initialize(batch, logAddLines);
@@ -95,10 +100,8 @@ public class LogstashInstance extends ExecutorAbstract {
                 // generate batch file
                 String batchPath = generatorService.generateBatch(batch.getBatch());
                 // archive execution batch state
-                execArgs.addAll(new ArrayList<String>() {{
-                    add("-f");
-                    add(batchPath);
-                }});
+                execArgs.addAll(List.of("-f", batchPath));
+
             }
             execArgs.add("--path.data");
             execArgs.add(this.path + (isWindows ? "\\" : "/") + dataPath);
@@ -133,6 +136,10 @@ public class LogstashInstance extends ExecutorAbstract {
                 if (!successfullyStarted && line.contains("Successfully started Logstash API endpoint {:port=>9600}")) {
                     successfullyStarted = true;
                 }
+                if (line.contains("Logstash shut down")) {
+                    // something logstash is stuck at the end, must auto kill the instance in this case
+                    stop();
+                }
             });
             bufferThread.start();
             startedCallback.run();
@@ -147,9 +154,7 @@ public class LogstashInstance extends ExecutorAbstract {
         log.info("Shutdown logstash " + instanceName);
 
         ProcessHelper.stop(logstashProcess);
-        if (bufferThread.isRunning()) {
-            bufferThread.stop();
-        }
+
         logstashProcess = null;
     }
 

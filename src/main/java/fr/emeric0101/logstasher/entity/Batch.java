@@ -7,7 +7,7 @@ import org.springframework.data.elasticsearch.annotations.Document;
 
 import java.util.List;
 
-@Document(indexName = "logstasher_batch", type = "doc")
+@Document(indexName = "#{@environment.getProperty('logstasher.index_batch')}")
 @Data
 public class Batch {
     @Id

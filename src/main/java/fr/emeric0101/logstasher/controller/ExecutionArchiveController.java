@@ -22,13 +22,7 @@ public class ExecutionArchiveController {
     @RequestMapping("/archive")
     @CrossOrigin(origins="*")
     public List<ExecutionArchive> archive() {
-        try {
             return batchExecutionArchiveService.findLastWeek();
-        } catch (SearchPhaseExecutionException e) {
-            // init ES
-            batchExecutionArchiveService.initArchive();
-            return batchExecutionArchiveService.findLastWeek();
-        }
     }
 
     @GetMapping("/{id}/log")
@@ -36,5 +30,6 @@ public class ExecutionArchiveController {
     public LogDTO getLog(@PathVariable("id") final String executionArchiveId) {
         return new LogDTO(batchExecutionArchiveService.getLog(executionArchiveId));
     }
+
 
 }

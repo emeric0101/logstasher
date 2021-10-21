@@ -6,6 +6,7 @@ import fr.emeric0101.logstasher.entity.ExecutionArchiveTypeEnum;
 import fr.emeric0101.logstasher.entity.Pipeline;
 import fr.emeric0101.logstasher.repository.ExecutionArchiveRepository;
 import org.apache.commons.io.FileUtils;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -51,15 +53,16 @@ public class ExecutionArchiveService {
 
 
         Calendar finalExpectedStart = expectedStart;
-        return executionArchiveRepository.save(new ExecutionArchive(){{
-            setBatch(batch);
-            setPipeline(pipelines);
-            setStartTime(startTime);
-            setEndTime(endTime);
-            setState(state);
-            setExpectedStart(finalExpectedStart != null ? finalExpectedStart : null);
-            setType(type.toString());
-        }});
+        var executionArchive = new ExecutionArchive();
+        executionArchive.setBatch(batch);
+        executionArchive.setPipeline(pipelines);
+        executionArchive.setStartTime(startTime);
+        executionArchive.setEndTime(endTime);
+        executionArchive.setState(state);
+        executionArchive.setExpectedStart(finalExpectedStart != null ? finalExpectedStart : null);
+        executionArchive.setType(type.toString());
+
+        return executionArchiveRepository.save(executionArchive);
     }
 
     public void save(ExecutionArchive currentExecutionArchive) {
@@ -76,12 +79,16 @@ public class ExecutionArchiveService {
         Calendar currentDateClone = (Calendar)currentDate.clone();
         currentDateClone.add(Calendar.MINUTE, -intervalMinutes*2);
         try {
-            return executionArchiveRepository.findInterval(currentDateClone.getTimeInMillis(), Calendar.getInstance().getTimeInMillis(), batchId);
+            return executionArchiveRepository.findInterval(
+                    simpleDateFormat.format(currentDateClone.getTime()),
+                    simpleDateFormat.format(Calendar.getInstance().getTime()),
+                    batchId);
         } catch (SearchPhaseExecutionException e) {
             e.printStackTrace();
             return new ArrayList<>();
         }
     }
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX");
 
     public List<ExecutionArchive> findLastWeek() {
         Calendar cal = Calendar.getInstance();
@@ -90,10 +97,22 @@ public class ExecutionArchiveService {
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MILLISECOND, 0);
         cal.add(Calendar.DATE, -7);
+        //fixme : move to localdatetime
         PageRequest pageRequest = PageRequest.of(0, 1000, Sort.Direction.DESC, "startTime");
-        return StreamSupport.stream(
-                executionArchiveRepository.findIntervalPage(cal.getTimeInMillis(), Calendar.getInstance().getTimeInMillis(), pageRequest)
-                .spliterator(), false).collect(Collectors.toList());
+        try {
+            return StreamSupport.stream(
+                    executionArchiveRepository.findIntervalPage(
+                            simpleDateFormat.format(cal.getTime()),
+                            simpleDateFormat.format(Calendar.getInstance().getTime()),
+                            pageRequest)
+                            .spliterator(), false).collect(Collectors.toList());
+        } catch (ElasticsearchStatusException e) {
+            e.printStackTrace();
+            // init ES
+            initArchive();
+            return findLastWeek();
+        }
+
 
     }
 
@@ -103,10 +122,10 @@ public class ExecutionArchiveService {
 
     public void initArchive() {
         clear();
-        save(new ExecutionArchive(){{
-            setState("INIT");
-            setStartTime(Calendar.getInstance());
-        }});
+        var archive = new ExecutionArchive();
+        archive.setState("INIT");
+        archive.setStartTime(Calendar.getInstance());
+        save(archive);
     }
 
     /**

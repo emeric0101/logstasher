@@ -159,11 +159,14 @@ public class BatchExecutionQueue {
                                     "The batch " + currentBatch.getBatch().getId() + " got an error\n\n" + currentBatch.getOutput());
                         }
                     }
+
                     currentBatch.getArchive().setEndTime(Calendar.getInstance());
                     executionService.sendState(executor);
 
                     String logPath = executionQueueSerializer.saveLog(currentBatch.getBatch().getId(), "End with " + retval);
                     currentBatch.getArchive().setLogPath(logPath);
+                    // fixme : Rise an exception when the process was interrupted (thread waiting for the response was interrupted)
+                    // fixed by removing the BufferThread stop at logstash stop
                     executionArchiveService.save(currentBatch.getArchive());
 
 

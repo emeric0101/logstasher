@@ -9,6 +9,7 @@ import fr.emeric0101.logstasher.service.Scheduler.MonthlyScheduler;
 import fr.emeric0101.logstasher.service.Scheduler.SchedulerInterface;
 import fr.emeric0101.logstasher.service.Scheduler.WeeklyScheduler;
 import fr.emeric0101.logstasher.service.batch.BatchExecutionService;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -34,8 +35,13 @@ public class BatchService {
 
 
     public List<Batch> findAll() {
-        PageRequest page = PageRequest.of(0, 1000, Sort.Direction.ASC, "order");
-        return StreamSupport.stream(repository.findAll(page).spliterator(), false).collect(Collectors.toList());
+        try {
+            PageRequest page = PageRequest.of(0, 1000, Sort.Direction.ASC, "order");
+            return StreamSupport.stream(repository.findAll(page).spliterator(), false).collect(Collectors.toList());
+        } catch (ElasticsearchStatusException e) {
+            return List.of();
+        }
+
     }
 
     public void save(Batch p) {

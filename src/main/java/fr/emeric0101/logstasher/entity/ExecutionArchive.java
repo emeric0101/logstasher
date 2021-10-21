@@ -2,26 +2,28 @@ package fr.emeric0101.logstasher.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.elasticsearch.annotations.DateFormat;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
+import org.springframework.data.elasticsearch.annotations.FieldType;
 
 import java.time.LocalDateTime;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-@Document(indexName = "logstasher_archive", type = "doc")
+@Document(indexName = "#{@environment.getProperty('logstasher.index_archive')}")
 public class ExecutionArchive {
     @Id
     private String id;
     private Batch batch;
     private List<Pipeline> pipeline;
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    @Field(type = FieldType.Date, format = DateFormat.date_time)
     private Date startTime;
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    @Field(type = FieldType.Date, format = DateFormat.date_time)
     private Date endTime;
     private String state;
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    @Field(type = FieldType.Date, format = DateFormat.date_time)
     private Date expectedStart;
     private String type;
     private String logPath;

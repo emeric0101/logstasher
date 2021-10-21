@@ -2,23 +2,14 @@ package fr.emeric0101.logstasher.service.scheduler;
 
 import fr.emeric0101.logstasher.entity.Batch;
 import fr.emeric0101.logstasher.entity.ExecutionArchive;
-import fr.emeric0101.logstasher.repository.ExecutionArchiveRepository;
-import fr.emeric0101.logstasher.service.ExecutionArchiveService;
 import fr.emeric0101.logstasher.service.Scheduler.DailyScheduler;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
 import java.util.Calendar;
-import java.util.LinkedList;
-import java.util.List;
 
-import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 
 public class DailySchedulerTest extends SchedulerTestAbstract {
 
